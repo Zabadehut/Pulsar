@@ -11,7 +11,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use dashboard::{Dashboard, Panel};
+use dashboard::{Dashboard, Panel, ReferenceUiState};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::time::Duration;
@@ -25,6 +25,7 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
     let mut terminal = Terminal::new(backend)?;
 
     let mut dashboard = Dashboard::new(&config.theme);
+    let mut reference = ReferenceUiState::default();
     let refresh = Duration::from_millis(config.refresh_rate_ms);
     let mut current_snapshot = Snapshot::default();
 
@@ -42,12 +43,64 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
             }
         }
 
-        terminal.draw(|frame| dashboard.render(frame, &current_snapshot))?;
+        terminal.draw(|frame| dashboard.render(frame, &current_snapshot, &reference))?;
 
         if event::poll(refresh)? {
             if let Event::Key(key) = event::read()? {
+                if reference.input_active {
+                    match key.code {
+                        KeyCode::Esc => {
+                            reference.input_active = false;
+                            if reference.query.is_empty() {
+                                reference.visible = false;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            reference.input_active = false;
+                            reference.visible = true;
+                        }
+                        KeyCode::Backspace => {
+                            reference.query.pop();
+                            reference.visible = true;
+                            reference.selected = 0;
+                        }
+                        KeyCode::Up => {
+                            reference.selected = reference.selected.saturating_sub(1);
+                        }
+                        KeyCode::Down => {
+                            reference.selected = reference.selected.saturating_add(1);
+                        }
+                        KeyCode::Char(ch) => {
+                            reference.query.push(ch);
+                            reference.visible = true;
+                            reference.selected = 0;
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Char('Q') => break,
+                    KeyCode::Char('/') => {
+                        reference.visible = true;
+                        reference.input_active = true;
+                        reference.selected = 0;
+                    }
+                    KeyCode::Char('?') => {
+                        reference.visible = !reference.visible;
+                        reference.input_active = false;
+                        reference.selected = 0;
+                    }
+                    KeyCode::Esc => {
+                        reference.input_active = false;
+                        if reference.visible {
+                            reference.visible = false;
+                        } else {
+                            reference.query.clear();
+                            reference.selected = 0;
+                        }
+                    }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         terminal.clear()?;
                     }

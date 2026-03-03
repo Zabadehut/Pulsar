@@ -14,14 +14,23 @@ pub fn render(
     trend_p50: f64,
     trend_p95: f64,
     theme: &Theme,
+    highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
             " ◉ CPU ",
-            theme.title_style(),
+            if highlighted {
+                theme.highlight_style()
+            } else {
+                theme.title_style()
+            },
         )]))
         .borders(Borders::ALL)
-        .border_style(theme.border_style());
+        .border_style(if highlighted {
+            theme.highlight_style()
+        } else {
+            theme.border_style()
+        });
 
     let inner = block.inner(area);
     frame.render_widget(block, area);

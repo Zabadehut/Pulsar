@@ -23,6 +23,12 @@ Benchmark helper:
 - `./scripts/benchmark-overhead-linux.sh --duration 30 --interval 5 --snapshot-count 25`
 - current Linux baseline result is documented in `docs/benchmarking.md`
 
+TUI knowledge helper:
+
+- `/` opens reference search
+- `?` toggles the technical index
+- `Esc` closes search or the index pane
+
 ## Command Notes
 
 ### `record`
@@ -114,6 +120,7 @@ Constraints for that future archive path:
 
 - `docs/community-cheatsheet.md`
 - `docs/benchmarking.md`
+- `docs/reference-architecture.md`
 - `docs/enterprise-cheatsheet.md`
 - `docs/cross-os-cheatsheet.md`
 - `docs/product-scope.md`

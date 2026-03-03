@@ -6,6 +6,7 @@ mod engine;
 mod exporters;
 mod pipeline;
 mod platform;
+mod reference;
 mod service;
 mod tui;
 

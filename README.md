@@ -72,6 +72,7 @@ What is not finished yet:
 
 Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
 Planned recording rotation and built-in zip archiving are documented in [`docs/help.md`](docs/help.md), but they are not implemented in the CLI yet.
+The TUI now also exposes a technical reference pane with `/` for search and `?` for the index.
 
 ```bash
 # Interactive TUI
@@ -185,6 +186,7 @@ Detailed planning documents:
 
 - [`docs/help.md`](docs/help.md)
 - [`docs/benchmarking.md`](docs/benchmarking.md)
+- [`docs/reference-architecture.md`](docs/reference-architecture.md)
 - [`docs/product-scope.md`](docs/product-scope.md)
 - [`docs/metrics-matrix.md`](docs/metrics-matrix.md)
 - [`docs/metrics-checklist.md`](docs/metrics-checklist.md)

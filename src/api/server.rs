@@ -1,9 +1,17 @@
 use crate::collectors::Snapshot;
 use crate::engine::registry::CollectorHealth;
 use crate::exporters::{prometheus::PrometheusExporter, Exporter};
+use crate::reference::{self, Locale};
 use anyhow::Result;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
-use serde::Serialize;
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -29,6 +37,7 @@ pub async fn run_server(
         .route("/metrics", get(metrics_handler))
         .route("/snapshot", get(snapshot_handler))
         .route("/health", get(health_handler))
+        .route("/reference", get(reference_handler))
         .with_state(state);
 
     info!("API server listening on http://{}", addr);
@@ -49,6 +58,12 @@ async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
 
 async fn snapshot_handler(State(state): State<AppState>) -> impl IntoResponse {
     Json(state.latest.read().await.clone())
+}
+
+#[derive(Debug, Deserialize)]
+struct ReferenceQuery {
+    q: Option<String>,
+    lang: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -93,4 +108,18 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
     };
 
     (code, Json(HealthResponse { status, collectors }))
+}
+
+async fn reference_handler(Query(query): Query<ReferenceQuery>) -> impl IntoResponse {
+    let locale = Locale::parse(query.lang.as_deref().unwrap_or("fr"));
+    let body: Value = if let Some(q) = query.q.as_deref() {
+        if q.trim().is_empty() {
+            serde_json::to_value(reference::catalog_views(locale)).unwrap_or(Value::Null)
+        } else {
+            serde_json::to_value(reference::search(q, locale)).unwrap_or(Value::Null)
+        }
+    } else {
+        serde_json::to_value(reference::catalog_views(locale)).unwrap_or(Value::Null)
+    };
+    (StatusCode::OK, Json(body))
 }

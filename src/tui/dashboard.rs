@@ -1,9 +1,10 @@
 use crate::collectors::Snapshot;
+use crate::reference::{self, Locale, SearchHit};
 use crate::tui::{
     theme::Theme,
     widgets::{
         alerts_widget, cpu_widget, disk_widget, linux_widget, memory_widget, network_widget,
-        process_widget,
+        process_widget, reference_widget,
     },
 };
 use ratatui::{
@@ -96,6 +97,14 @@ pub struct Dashboard {
     visibility: PanelVisibility,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ReferenceUiState {
+    pub visible: bool,
+    pub input_active: bool,
+    pub query: String,
+    pub selected: usize,
+}
+
 impl Dashboard {
     pub fn new(theme_name: &str) -> Self {
         let theme_name = Theme::normalize_name(theme_name).to_string();
@@ -115,7 +124,7 @@ impl Dashboard {
         self.visibility.toggle(panel);
     }
 
-    pub fn render(&self, frame: &mut Frame, snapshot: &Snapshot) {
+    pub fn render(&self, frame: &mut Frame, snapshot: &Snapshot, reference: &ReferenceUiState) {
         let area = frame.area();
 
         // Layout principal : header + corps + footer
@@ -128,12 +137,18 @@ impl Dashboard {
             ])
             .split(area);
 
-        self.render_header(frame, main[0], snapshot);
-        self.render_body(frame, main[1], snapshot);
-        self.render_footer(frame, main[2], snapshot);
+        self.render_header(frame, main[0], snapshot, reference);
+        self.render_body(frame, main[1], snapshot, reference);
+        self.render_footer(frame, main[2], snapshot, reference);
     }
 
-    fn render_header(&self, frame: &mut Frame, area: Rect, snapshot: &Snapshot) {
+    fn render_header(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
         let hostname = snapshot
             .system
             .as_ref()
@@ -159,11 +174,49 @@ impl Dashboard {
         let header = Paragraph::new(Line::from(vec![
             Span::styled(" ◉ PULSAR ", self.theme.title_style()),
             Span::raw(format!("  {}  {}  {}  {}", hostname, os, uptime, ts)),
+            Span::raw("  "),
+            Span::styled(
+                if reference.query.is_empty() {
+                    "index:off".to_string()
+                } else {
+                    format!("search:{}", reference.query)
+                },
+                if reference.query.is_empty() {
+                    self.theme.muted_style()
+                } else {
+                    self.theme.highlight_style()
+                },
+            ),
         ]));
         frame.render_widget(header, area);
     }
 
-    fn render_body(&self, frame: &mut Frame, area: Rect, snapshot: &Snapshot) {
+    fn render_body(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
+        if reference.visible {
+            let cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(68), Constraint::Percentage(32)])
+                .split(area);
+            self.render_monitoring(frame, cols[0], snapshot, reference);
+            self.render_reference(frame, cols[1], reference);
+        } else {
+            self.render_monitoring(frame, area, snapshot, reference);
+        }
+    }
+
+    fn render_monitoring(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
         let left_panels = [Panel::Cpu, Panel::Memory, Panel::Linux];
         let right_panels = [Panel::Disk, Panel::Network, Panel::Alerts];
 
@@ -182,11 +235,23 @@ impl Dashboard {
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Length(25), Constraint::Min(0)])
                     .split(area);
-                self.render_top(frame, rows[0], snapshot, has_left, has_right);
-                process_widget::render(frame, rows[1], &snapshot.processes, &self.theme);
+                self.render_top(frame, rows[0], snapshot, has_left, has_right, reference);
+                process_widget::render(
+                    frame,
+                    rows[1],
+                    &snapshot.processes,
+                    &self.theme,
+                    self.panel_highlighted(Panel::Process, reference),
+                );
             }
-            (true, false) => self.render_top(frame, area, snapshot, has_left, has_right),
-            (false, true) => process_widget::render(frame, area, &snapshot.processes, &self.theme),
+            (true, false) => self.render_top(frame, area, snapshot, has_left, has_right, reference),
+            (false, true) => process_widget::render(
+                frame,
+                area,
+                &snapshot.processes,
+                &self.theme,
+                self.panel_highlighted(Panel::Process, reference),
+            ),
             (false, false) => {
                 frame.render_widget(
                     Paragraph::new("All panels hidden. Toggle with c/m/l/d/n/a/p."),
@@ -203,6 +268,7 @@ impl Dashboard {
         snapshot: &Snapshot,
         has_left: bool,
         has_right: bool,
+        reference: &ReferenceUiState,
     ) {
         match (has_left, has_right) {
             (true, true) => {
@@ -210,16 +276,22 @@ impl Dashboard {
                     .direction(Direction::Horizontal)
                     .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
                     .split(area);
-                self.render_left_stack(frame, cols[0], snapshot);
-                self.render_right_stack(frame, cols[1], snapshot);
+                self.render_left_stack(frame, cols[0], snapshot, reference);
+                self.render_right_stack(frame, cols[1], snapshot, reference);
             }
-            (true, false) => self.render_left_stack(frame, area, snapshot),
-            (false, true) => self.render_right_stack(frame, area, snapshot),
+            (true, false) => self.render_left_stack(frame, area, snapshot, reference),
+            (false, true) => self.render_right_stack(frame, area, snapshot, reference),
             (false, false) => {}
         }
     }
 
-    fn render_left_stack(&self, frame: &mut Frame, area: Rect, snapshot: &Snapshot) {
+    fn render_left_stack(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
         let panels = self.visible_panels(&[Panel::Cpu, Panel::Memory, Panel::Linux]);
         let chunks = split_vertical(area, panels.len());
 
@@ -232,6 +304,7 @@ impl Dashboard {
                     snapshot.computed.cpu_trend_p50,
                     snapshot.computed.cpu_trend_p95,
                     &self.theme,
+                    self.panel_highlighted(Panel::Cpu, reference),
                 ),
                 Panel::Memory => memory_widget::render(
                     frame,
@@ -239,30 +312,92 @@ impl Dashboard {
                     snapshot.memory.as_ref(),
                     snapshot.computed.memory_pressure,
                     &self.theme,
+                    self.panel_highlighted(Panel::Memory, reference),
                 ),
-                Panel::Linux => {
-                    linux_widget::render(frame, chunk, snapshot.linux.as_ref(), &self.theme)
-                }
+                Panel::Linux => linux_widget::render(
+                    frame,
+                    chunk,
+                    snapshot.linux.as_ref(),
+                    &self.theme,
+                    self.panel_highlighted(Panel::Linux, reference),
+                ),
                 _ => {}
             }
         }
     }
 
-    fn render_right_stack(&self, frame: &mut Frame, area: Rect, snapshot: &Snapshot) {
+    fn render_right_stack(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
         let panels = self.visible_panels(&[Panel::Disk, Panel::Network, Panel::Alerts]);
         let chunks = split_vertical(area, panels.len());
 
         for (panel, chunk) in panels.into_iter().zip(chunks.into_iter()) {
             match panel {
-                Panel::Disk => disk_widget::render(frame, chunk, &snapshot.disks, &self.theme),
-                Panel::Network => {
-                    network_widget::render(frame, chunk, &snapshot.networks, &self.theme)
-                }
-                Panel::Alerts => {
-                    alerts_widget::render(frame, chunk, &snapshot.computed.alerts, &self.theme)
-                }
+                Panel::Disk => disk_widget::render(
+                    frame,
+                    chunk,
+                    &snapshot.disks,
+                    &self.theme,
+                    self.panel_highlighted(Panel::Disk, reference),
+                ),
+                Panel::Network => network_widget::render(
+                    frame,
+                    chunk,
+                    &snapshot.networks,
+                    &self.theme,
+                    self.panel_highlighted(Panel::Network, reference),
+                ),
+                Panel::Alerts => alerts_widget::render(
+                    frame,
+                    chunk,
+                    &snapshot.computed.alerts,
+                    &self.theme,
+                    self.panel_highlighted(Panel::Alerts, reference),
+                ),
                 _ => {}
             }
+        }
+    }
+
+    fn render_reference(&self, frame: &mut Frame, area: Rect, reference: &ReferenceUiState) {
+        let hits = self.reference_hits(reference);
+        let selected = reference.selected.min(hits.len().saturating_sub(1));
+        reference_widget::render(frame, area, &reference.query, &hits, selected, &self.theme);
+    }
+
+    fn reference_hits(&self, reference: &ReferenceUiState) -> Vec<SearchHit> {
+        if reference.query.is_empty() {
+            reference::catalog_views(Locale::Fr)
+                .into_iter()
+                .enumerate()
+                .map(|(index, entry)| SearchHit {
+                    score: 1usize.saturating_sub(index),
+                    entry,
+                })
+                .collect()
+        } else {
+            reference::search(&reference.query, Locale::Fr)
+        }
+    }
+
+    fn panel_highlighted(&self, panel: Panel, reference: &ReferenceUiState) -> bool {
+        reference::panel_matches_query(self.panel_key(panel), &reference.query)
+    }
+
+    fn panel_key(&self, panel: Panel) -> &'static str {
+        match panel {
+            Panel::Cpu => "cpu",
+            Panel::Memory => "memory",
+            Panel::Linux => "linux",
+            Panel::Disk => "disk",
+            Panel::Network => "network",
+            Panel::Alerts => "alerts",
+            Panel::Process => "process",
         }
     }
 
@@ -274,7 +409,13 @@ impl Dashboard {
             .collect()
     }
 
-    fn render_footer(&self, frame: &mut Frame, area: Rect, snapshot: &Snapshot) {
+    fn render_footer(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        snapshot: &Snapshot,
+        reference: &ReferenceUiState,
+    ) {
         let alerts = snapshot.computed.alerts.len();
         let visibility = &self.visibility;
         let footer = Paragraph::new(Line::from(vec![
@@ -284,6 +425,18 @@ impl Dashboard {
             Span::raw(":refresh  "),
             Span::styled("t", self.theme.highlight_style()),
             Span::raw(format!(":theme({})  ", self.theme_name)),
+            Span::styled("/", self.theme.highlight_style()),
+            Span::raw(":search  "),
+            Span::styled("?", self.theme.highlight_style()),
+            Span::raw(":index  "),
+            Span::styled("esc", self.theme.highlight_style()),
+            Span::raw(if reference.input_active {
+                ":close search  "
+            } else if reference.visible {
+                ":close index  "
+            } else {
+                ":clear  "
+            }),
             panel_toggle_span("c", "cpu", visibility.cpu, &self.theme),
             Span::raw(" "),
             panel_toggle_span("m", "mem", visibility.memory, &self.theme),
@@ -305,6 +458,19 @@ impl Dashboard {
                 ),
                 if alerts > 0 {
                     self.theme.alert_style()
+                } else {
+                    self.theme.highlight_style()
+                },
+            ),
+            Span::raw("  "),
+            Span::styled(
+                if reference.query.is_empty() {
+                    "reference:all".to_string()
+                } else {
+                    format!("reference:{}", reference.query)
+                },
+                if reference.query.is_empty() {
+                    self.theme.muted_style()
                 } else {
                     self.theme.highlight_style()
                 },
