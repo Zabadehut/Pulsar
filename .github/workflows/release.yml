@@ -31,22 +31,6 @@ jobs:
             exit 1
           }
 
-      - name: Validate signing secrets
-        shell: bash
-        run: |
-          test -n "${{ secrets.PULSAR_GPG_PRIVATE_KEY }}" || {
-            echo "Missing required secret: PULSAR_GPG_PRIVATE_KEY" >&2
-            exit 1
-          }
-          test -n "${{ secrets.PULSAR_GPG_KEY_ID }}" || {
-            echo "Missing required secret: PULSAR_GPG_KEY_ID" >&2
-            exit 1
-          }
-          command -v gpg >/dev/null 2>&1 || {
-            echo "Missing required command: gpg" >&2
-            exit 1
-          }
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -54,18 +38,6 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
-
-      - name: Import GPG signing key
-        shell: bash
-        run: |
-          temp_key="${RUNNER_TEMP}/pulsar-release.key"
-          if base64 --help 2>/dev/null | grep -q -- '--decode'; then
-            printf '%s' '${{ secrets.PULSAR_GPG_PRIVATE_KEY }}' | base64 --decode > "$temp_key"
-          else
-            printf '%s' '${{ secrets.PULSAR_GPG_PRIVATE_KEY }}' | base64 -D > "$temp_key"
-          fi
-          gpg --batch --import "$temp_key"
-          echo "PULSAR_GPG_KEY_ID=${{ secrets.PULSAR_GPG_KEY_ID }}" >> "$GITHUB_ENV"
 
       - name: Build release artifacts
         shell: bash
@@ -82,6 +54,10 @@ jobs:
     name: Publish Release
     runs-on: ubuntu-latest
     needs: build
+    environment: release
+    env:
+      PULSAR_GPG_PRIVATE_KEY: ${{ secrets.PULSAR_GPG_PRIVATE_KEY }}
+      PULSAR_GPG_KEY_ID: ${{ secrets.PULSAR_GPG_KEY_ID }}
     permissions:
       contents: write
 
@@ -92,6 +68,48 @@ jobs:
           path: release-artifacts
           pattern: pulsar-release-*
           merge-multiple: true
+
+      - name: Import optional GPG signing key
+        if: ${{ env.PULSAR_GPG_PRIVATE_KEY != '' && env.PULSAR_GPG_KEY_ID != '' }}
+        shell: bash
+        run: |
+          if ! command -v gpg >/dev/null 2>&1; then
+            echo "gpg not available on this runner; publishing unsigned checksums"
+            exit 0
+          fi
+
+          temp_key="${RUNNER_TEMP}/pulsar-release.key"
+          if base64 --help 2>/dev/null | grep -q -- '--decode'; then
+            printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
+          else
+            printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
+          fi
+
+          gpg --batch --import "$temp_key"
+          echo "PULSAR_GPG_KEY_ID=$PULSAR_GPG_KEY_ID" >> "$GITHUB_ENV"
+
+      - name: Sign checksum files when key is available
+        if: ${{ env.PULSAR_GPG_KEY_ID != '' }}
+        shell: bash
+        run: |
+          if ! command -v gpg >/dev/null 2>&1; then
+            echo "gpg not available on this runner; publishing unsigned checksums"
+            exit 0
+          fi
+
+          shopt -s nullglob
+          checksum_files=(release-artifacts/*.SHA256SUMS)
+          if [[ ${#checksum_files[@]} -eq 0 ]]; then
+            echo "No checksum files found to sign" >&2
+            exit 1
+          fi
+
+          for checksum_file in "${checksum_files[@]}"; do
+            gpg --batch --yes --armor --detach-sign \
+              --local-user "$PULSAR_GPG_KEY_ID" \
+              --output "${checksum_file}.asc" \
+              "$checksum_file"
+          done
 
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2

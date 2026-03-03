@@ -171,6 +171,9 @@ jobs:
   package:
     name: Package - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      PULSAR_GPG_PRIVATE_KEY: ${{ secrets.PULSAR_GPG_PRIVATE_KEY }}
+      PULSAR_GPG_KEY_ID: ${{ secrets.PULSAR_GPG_KEY_ID }}
     strategy:
       fail-fast: false
       matrix:
@@ -189,18 +192,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Import optional GPG signing key
-        if: ${{ secrets.PULSAR_GPG_PRIVATE_KEY != '' && secrets.PULSAR_GPG_KEY_ID != '' }}
+        if: ${{ env.PULSAR_GPG_PRIVATE_KEY != '' && env.PULSAR_GPG_KEY_ID != '' }}
         shell: bash
         run: |
           if command -v gpg >/dev/null 2>&1; then
             temp_key="${RUNNER_TEMP}/pulsar-release.key"
             if base64 --help 2>/dev/null | grep -q -- '--decode'; then
-              printf '%s' '${{ secrets.PULSAR_GPG_PRIVATE_KEY }}' | base64 --decode > "$temp_key"
+              printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
             else
-              printf '%s' '${{ secrets.PULSAR_GPG_PRIVATE_KEY }}' | base64 -D > "$temp_key"
+              printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
             fi
             gpg --batch --import "$temp_key"
-            echo "PULSAR_GPG_KEY_ID=${{ secrets.PULSAR_GPG_KEY_ID }}" >> "$GITHUB_ENV"
+            echo "PULSAR_GPG_KEY_ID=$PULSAR_GPG_KEY_ID" >> "$GITHUB_ENV"
           else
             echo "gpg not available on this runner; packaging will continue without signature"
           fi

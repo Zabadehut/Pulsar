@@ -1,8 +1,11 @@
 # Release Process
 
-## GitHub Secrets
+## GitHub Environment
 
-GitHub release signing requires these repository or organization secrets:
+Create a protected GitHub environment named `release` and store the signing secrets there.
+That keeps the private key scoped to the publish job instead of exposing it to every build job.
+
+Required secrets for signed releases:
 
 - `PULSAR_GPG_PRIVATE_KEY`: ASCII-armored private key, base64-encoded before upload
 - `PULSAR_GPG_KEY_ID`: key identifier used by `gpg --local-user`
@@ -30,11 +33,13 @@ git push origin v0.4.0
 
 The release workflow:
 
-- validates the signing secrets
-- imports the GPG key
 - runs `./scripts/build-complete.sh` on Linux, macOS, and Windows
 - uploads the generated `dist/` artifacts to the workflow run
+- imports the GPG key in the `release` environment when both signing secrets are present
+- signs the checksum files when a key is available
 - publishes the archives, checksums, and checksum signatures to the GitHub Release
+
+If the signing secrets are absent, the workflow still publishes the release artifacts, but without `*.SHA256SUMS.asc`.
 
 ## Local Verification
 
