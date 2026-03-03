@@ -54,6 +54,11 @@ try {
     }
 }
 finally {
-    & $Binary service uninstall *> $null
+    try {
+        & $Binary service uninstall *> $null
+    }
+    catch {
+    }
+    $global:LASTEXITCODE = 0
     Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
 }
