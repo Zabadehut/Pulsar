@@ -108,6 +108,7 @@ jobs:
         run: cargo build --locked
 
       - name: Test
+        shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             cargo test --locked -- --test-threads=1

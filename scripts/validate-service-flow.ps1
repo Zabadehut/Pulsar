@@ -48,7 +48,7 @@ try {
     }
 
     foreach ($path in @($runnerPath, $xmlPath)) {
-        if (Test-Path $path -and -not $env:GITHUB_ACTIONS) {
+        if ((Test-Path $path) -and (-not $env:GITHUB_ACTIONS)) {
             throw "service artifact should have been removed: $path"
         }
     }
