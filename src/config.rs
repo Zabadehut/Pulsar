@@ -275,4 +275,11 @@ impl Config {
             Self::default()
         }
     }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        let content = toml::to_string_pretty(self)
+            .with_context(|| format!("Failed to serialize config: {}", path.display()))?;
+        std::fs::write(path, content)
+            .with_context(|| format!("Failed to write config: {}", path.display()))
+    }
 }

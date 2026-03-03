@@ -250,9 +250,8 @@ fn read_linux_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntr
                     json_string(&value, "PRIORITY")
                         .and_then(|priority| priority.parse::<u8>().ok()),
                 ),
-                source: json_string(&value, "SYSLOG_IDENTIFIER")
-                    .unwrap_or_else(|| "journal".to_string()),
-                origin: "journalctl".to_string(),
+                source: linux_source(&value),
+                origin: linux_origin(&value),
                 message,
             })
         })
@@ -261,6 +260,10 @@ fn read_linux_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntr
 
 #[cfg(target_os = "macos")]
 fn read_macos_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntry> {
+    if let Some(events) = read_macos_json_events(window_secs, max_entries) {
+        return events;
+    }
+
     let hours = ((window_secs as f64) / 3600.0).max(1.0);
     let last = format!("{hours:.1}h");
     let Some(output) = command_output(
@@ -288,7 +291,7 @@ fn read_macos_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntr
                 timestamp: Utc::now().timestamp(),
                 level: infer_level(trimmed),
                 source,
-                origin: "log show".to_string(),
+                origin: "log show compact".to_string(),
                 message: trimmed.to_string(),
             })
         })
@@ -302,7 +305,7 @@ fn read_macos_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntr
 fn read_windows_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntry> {
     let hours = ((window_secs as f64) / 3600.0).max(1.0);
     let command = format!(
-        "Get-WinEvent -FilterHashtable @{{LogName='Application','System'; StartTime=(Get-Date).AddHours(-{hours})}} -MaxEvents {max_entries} | Select-Object TimeCreated,LevelDisplayName,ProviderName,Message | ConvertTo-Json -Compress"
+        "Get-WinEvent -FilterHashtable @{{LogName='Application','System'; StartTime=(Get-Date).AddHours(-{hours})}} -MaxEvents {max_entries} | Select-Object TimeCreated,LevelDisplayName,ProviderName,LogName,Id,MachineName,Message | ConvertTo-Json -Compress"
     );
     let Some(output) = command_output("powershell", &["-NoProfile", "-Command", &command]) else {
         return Vec::new();
@@ -320,8 +323,15 @@ fn read_windows_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEn
         .into_iter()
         .filter_map(|item| {
             let message = json_string(&item, "Message")?;
+            let log_name = json_string(&item, "LogName").unwrap_or_else(|| "eventlog".into());
+            let provider = json_string(&item, "ProviderName").unwrap_or_else(|| "eventlog".into());
+            let event_id = json_string(&item, "Id").unwrap_or_default();
             Some(LogEntry {
-                timestamp: Utc::now().timestamp(),
+                timestamp: windows_timestamp(
+                    json_string(&item, "TimeCreated")
+                        .unwrap_or_default()
+                        .as_str(),
+                ),
                 level: match json_string(&item, "LevelDisplayName")
                     .unwrap_or_default()
                     .to_ascii_lowercase()
@@ -331,12 +341,67 @@ fn read_windows_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEn
                     "warning" => AlertLevel::Warning,
                     _ => AlertLevel::Info,
                 },
-                source: json_string(&item, "ProviderName").unwrap_or_else(|| "eventlog".into()),
-                origin: "Get-WinEvent".to_string(),
+                source: provider,
+                origin: if event_id.is_empty() {
+                    format!("Get-WinEvent/{log_name}")
+                } else {
+                    format!("Get-WinEvent/{log_name}/event-{event_id}")
+                },
                 message,
             })
         })
         .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn read_macos_json_events(window_secs: u64, max_entries: usize) -> Option<Vec<LogEntry>> {
+    let hours = ((window_secs as f64) / 3600.0).max(1.0);
+    let last = format!("{hours:.1}h");
+    let output = command_output(
+        "log",
+        &["show", "--last", &last, "--style", "json", "--info"],
+    )?;
+    let value = serde_json::from_str::<Value>(&output).ok()?;
+    let items = match value {
+        Value::Array(items) => items,
+        other => vec![other],
+    };
+
+    Some(
+        items
+            .into_iter()
+            .rev()
+            .take(max_entries)
+            .filter_map(|item| {
+                let message =
+                    json_string(&item, "eventMessage").or_else(|| json_string(&item, "message"))?;
+                let subsystem = json_string(&item, "subsystem").unwrap_or_default();
+                let category = json_string(&item, "category").unwrap_or_default();
+                let process = json_string(&item, "processImagePath")
+                    .or_else(|| json_string(&item, "process"))
+                    .unwrap_or_else(|| "log".to_string());
+                Some(LogEntry {
+                    timestamp: macos_timestamp(
+                        json_string(&item, "timestamp").unwrap_or_default().as_str(),
+                    ),
+                    level: macos_level(
+                        json_string(&item, "messageType")
+                            .unwrap_or_default()
+                            .as_str(),
+                    ),
+                    source: process,
+                    origin: if subsystem.is_empty() && category.is_empty() {
+                        "log show json".to_string()
+                    } else if category.is_empty() {
+                        format!("log show json/{subsystem}")
+                    } else {
+                        format!("log show json/{subsystem}/{category}")
+                    },
+                    message,
+                })
+            })
+            .collect(),
+    )
 }
 
 fn priority_to_level(priority: Option<u8>) -> AlertLevel {
@@ -345,6 +410,48 @@ fn priority_to_level(priority: Option<u8>) -> AlertLevel {
         4 => AlertLevel::Warning,
         _ => AlertLevel::Info,
     }
+}
+
+#[cfg(target_os = "linux")]
+fn linux_source(value: &Value) -> String {
+    json_string(value, "SYSLOG_IDENTIFIER")
+        .or_else(|| json_string(value, "_COMM"))
+        .or_else(|| json_string(value, "_SYSTEMD_UNIT"))
+        .unwrap_or_else(|| "journal".to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_origin(value: &Value) -> String {
+    if let Some(unit) = json_string(value, "_SYSTEMD_UNIT") {
+        return format!("journalctl/{unit}");
+    }
+    if let Some(transport) = json_string(value, "_TRANSPORT") {
+        return format!("journalctl/{transport}");
+    }
+    "journalctl".to_string()
+}
+
+#[cfg(target_os = "macos")]
+fn macos_level(value: &str) -> AlertLevel {
+    match value.to_ascii_lowercase().as_str() {
+        "error" | "fault" => AlertLevel::Critical,
+        "default" | "info" => AlertLevel::Info,
+        _ => infer_level(value),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_timestamp(value: &str) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|timestamp| timestamp.timestamp())
+        .unwrap_or_else(|_| Utc::now().timestamp())
+}
+
+#[cfg(target_os = "windows")]
+fn windows_timestamp(value: &str) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|timestamp| timestamp.timestamp())
+        .unwrap_or_else(|_| Utc::now().timestamp())
 }
 
 fn json_string(value: &Value, key: &str) -> Option<String> {

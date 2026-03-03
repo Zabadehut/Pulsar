@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
         .init();
 
     match cli.command.unwrap_or(Commands::Tui) {
-        Commands::Tui => run_tui(config).await,
+        Commands::Tui => run_tui(config, config_path).await,
         Commands::Snapshot { format } => run_snapshot(&config, &format).await,
         Commands::Server { port } => run_server(config, port).await,
         Commands::Inventory { format } => run_inventory(&config, &format).await,
@@ -151,7 +151,7 @@ fn build_pipeline(config: &Config) -> PipelineRunner {
 
 // ─── Mode TUI ────────────────────────────────────────────────────────────────
 
-async fn run_tui(config: Config) -> Result<()> {
+async fn run_tui(config: Config, config_path: PathBuf) -> Result<()> {
     info!("Starting Pulsar TUI");
     let (scheduler, rx) = Scheduler::new(build_registry(&config), build_pipeline(&config));
     let token = CancellationToken::new();
@@ -161,7 +161,7 @@ async fn run_tui(config: Config) -> Result<()> {
         scheduler.run(token_clone).await;
     });
 
-    tui::run_tui(&config.tui, &config.logs, rx).await?;
+    tui::run_tui(&config.tui, &config.logs, &config_path, rx).await?;
     token.cancel();
     Ok(())
 }

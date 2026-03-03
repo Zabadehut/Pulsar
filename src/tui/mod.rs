@@ -4,7 +4,7 @@ pub mod theme;
 pub mod widgets;
 
 use crate::collectors::Snapshot;
-use crate::config::{LogsConfig, TuiConfig};
+use crate::config::{Config, LogsConfig, TuiConfig};
 use crate::engine::scheduler::TickEvent;
 use crate::reference::Locale;
 use crate::tui::widgets::analysis_widget::SpecialistView;
@@ -17,12 +17,14 @@ use crossterm::{
 use dashboard::{Dashboard, LogUiState, OperatorMode, Panel, ReferenceUiState};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
+use std::path::Path;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
 pub async fn run_tui(
     config: &TuiConfig,
     logs_config: &LogsConfig,
+    config_path: &Path,
     mut rx: broadcast::Receiver<TickEvent>,
 ) -> Result<()> {
     enable_raw_mode()?;
@@ -77,6 +79,13 @@ pub async fn run_tui(
                             if !target.is_empty() && !logs.targets.iter().any(|item| item == target)
                             {
                                 logs.targets.push(target.to_string());
+                                logs.targets.sort();
+                                if let Err(error) = persist_log_targets(config_path, &logs.targets)
+                                {
+                                    logs.last_error = Some(error.to_string());
+                                } else {
+                                    logs.last_error = None;
+                                }
                             }
                             logs.query.clear();
                             logs.input_active = false;
@@ -312,4 +321,10 @@ fn maybe_refresh_logs(dashboard: &Dashboard, config: &LogsConfig, logs: &mut Log
         config.max_files,
         config.max_lines_per_file,
     );
+}
+
+fn persist_log_targets(config_path: &Path, targets: &[String]) -> Result<()> {
+    let mut config = Config::load_or_default(config_path);
+    config.logs.paths = targets.to_vec();
+    config.save(config_path)
 }
