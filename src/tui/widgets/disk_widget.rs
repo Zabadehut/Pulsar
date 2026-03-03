@@ -46,6 +46,8 @@ pub fn render(
 
     let mut header_cells = vec![
         Cell::from(text(locale, "Device", "Device")),
+        Cell::from(text(locale, "Struct", "Struct")),
+        Cell::from(text(locale, "Proto", "Proto")),
         Cell::from(text(locale, "Monte", "Mount")),
         Cell::from(text(locale, "Use%", "Used%")),
         Cell::from("R IOPS"),
@@ -67,6 +69,8 @@ pub fn render(
         .map(|d| {
             let mut cells = vec![
                 Cell::from(d.device.clone()),
+                Cell::from(d.structure_hint.chars().take(10).collect::<String>()),
+                Cell::from(d.protocol_hint.chars().take(10).collect::<String>()),
                 Cell::from(d.mount_point.chars().take(10).collect::<String>()),
                 Cell::from(format!("{:.1}%", d.usage_pct)),
                 Cell::from(format!("{}", d.read_iops)),
@@ -87,6 +91,8 @@ pub fn render(
 
     let mut widths = vec![
         ratatui::layout::Constraint::Length(8),
+        ratatui::layout::Constraint::Length(11),
+        ratatui::layout::Constraint::Length(11),
         ratatui::layout::Constraint::Length(11),
         ratatui::layout::Constraint::Length(7),
         ratatui::layout::Constraint::Length(7),

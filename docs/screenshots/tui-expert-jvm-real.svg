@@ -7,7 +7,7 @@
 </defs>
 <rect width="1160" height="790" fill="url(#bg)"/>
 <rect x="10" y="10" width="1140" height="770" rx="12" fill="#0b1020" stroke="#334155" stroke-width="1.5"/>
-<text x="20" y="26" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> ◉ PULSAR   rocky9-workstation-master  linux  up 22h 16m  14:14:47</text>
+<text x="20" y="26" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> ◉ PULSAR   rocky9-workstation-master  linux  up 22h 23m  14:21:51</text>
 <text x="20" y="44" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">mode:processus  lang:fr  index:off</text>
 <text x="20" y="62" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">┌ ◉ ANALYSE jvm+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
 <text x="20" y="80" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">│jvm 0  threads 0  fds 0                                                                                                                   │</text>
@@ -46,5 +46,5 @@
 <text x="20" y="674" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> q:quitter   r:refresh   t:theme(dark)   i:lang(fr)   v:detail(detail)   /:search   ?:index   esc:vider</text>
 <text x="20" y="692" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> 7:pression+   8:reseau+   9:jvm+   0:disque+   -:retour normal  expert:jvm+</text>
 <text x="20" y="710" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> 1:vue   2:stockage   3:reseau   4:processus   5:pression   6:complet</text>
-<text x="20" y="728" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">s:sys  c:cpu  m:mem  l:linux off  d:disk off  n:net off  a:alertes  p:proc  visibles:5/8  alertes:0 w:0 c:0  reference:tout  Pulsar v0.2.0</text>
+<text x="20" y="728" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">s:sys  c:cpu  m:mem  l:linux off  d:disk off  n:net off  a:alertes  p:proc  visibles:5/8  alertes:0 w:0 c:0  reference:tout  Pulsar v0.3.0</text>
 </svg>

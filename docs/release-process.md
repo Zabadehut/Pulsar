@@ -21,11 +21,11 @@ gpg --armor --export-secret-keys YOUR_KEY_ID | base64
 
 ## Tag Release
 
-Push a semantic version tag such as `v0.3.0` to trigger the release workflow. The tag suffix must match the version in `Cargo.toml`:
+Push a semantic version tag such as `v0.4.0` to trigger the release workflow. The tag suffix must match the version in `Cargo.toml`:
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 The release workflow:

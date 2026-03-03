@@ -8,14 +8,26 @@ The format is inspired by Keep a Changelog, and this project aims to follow Sema
 
 ### Added
 
-- Real terminal-derived README screenshots for `overview`, `network+`, `jvm+`, and `disk+`
-- Specialist pressure and disk lens tables to match the deeper network/JVM expert views
-- Reproducible TUI screenshot capture/render scripts
+- Real terminal-derived README screenshots for `overview`, `pressure+`, `network+`, `jvm+`, and `disk+`
+- Cross-OS disk identity hints for structure, protocol, and media
+- Deeper disk readability in standard and expert TUI views
 
 ### Changed
 
-- Project version advanced to `0.3.0`
+- Project version advanced to `0.4.0`
 - The TUI footer now reads the package version directly from Cargo metadata
+
+## [0.4.0] - 2026-03-03
+
+### Added
+
+- Real `pressure+` screenshot in the README
+- Cross-platform disk identity hints for structure, protocol, and media
+- Richer disk tables in standard and expert views
+
+### Changed
+
+- Disk observability is now easier to read across Linux, macOS, and Windows with portable heuristics
 
 ## [0.3.0] - 2026-03-03
 

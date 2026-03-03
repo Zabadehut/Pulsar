@@ -48,6 +48,7 @@ Index behavior:
 - `pressure+` also exposes pressure lenses (`reclaim`, `swap`, `host/cgroup gap`, stall mixes)
 - `disk+` exposes hot disks plus waiters/IO correlation
 - `disk+` also exposes contention lenses (`busy`, `latency`, `queue`, waiter pressure`)
+- the standard disk views now expose `structure`, `proto`, and `media` hints to make cross-OS storage paths easier to read
 
 Product boundary reminder:
 

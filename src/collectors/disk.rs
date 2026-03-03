@@ -11,6 +11,9 @@ pub struct DiskMetrics {
     pub timestamp: i64,
     pub device: String,
     pub mount_point: String,
+    pub structure_hint: String,
+    pub protocol_hint: String,
+    pub media_hint: String,
     pub total_gb: f64,
     pub used_gb: f64,
     pub free_gb: f64,
@@ -112,6 +115,7 @@ fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
         };
 
         let mount_point = mount_map.get(&disk.device).cloned().unwrap_or_default();
+        let identity = classify_disk_identity(&disk.device, &mount_point);
         let space = if mount_point.is_empty() {
             crate::platform::api::RawDiskSpace::default()
         } else {
@@ -124,6 +128,9 @@ fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
             timestamp: now,
             device: disk.device,
             mount_point,
+            structure_hint: identity.structure,
+            protocol_hint: identity.protocol,
+            media_hint: identity.media,
             total_gb: space.total_gb,
             used_gb: space.used_gb,
             free_gb: space.free_gb,
@@ -143,6 +150,119 @@ fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
 
     c.prev_at = Some(collected_at);
     Ok(results)
+}
+
+#[derive(Debug)]
+struct DiskIdentity {
+    structure: String,
+    protocol: String,
+    media: String,
+}
+
+fn classify_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
+    #[cfg(target_os = "linux")]
+    {
+        classify_linux_disk_identity(device, mount_point)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        classify_macos_disk_identity(device, mount_point)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        classify_windows_disk_identity(device, mount_point)
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn classify_linux_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
+    let structure = if device.starts_with("nvme") {
+        "namespace"
+    } else if device.starts_with("dm-") {
+        "mapper"
+    } else if device.starts_with("md") {
+        "raid"
+    } else if device.starts_with("vd") || device.starts_with("xvd") {
+        "virtual-disk"
+    } else {
+        "block-disk"
+    };
+
+    let protocol = if device.starts_with("nvme") {
+        "nvme"
+    } else if device.starts_with("vd") {
+        "virtio"
+    } else if device.starts_with("xvd") {
+        "xen"
+    } else if device.starts_with("dm-") {
+        "device-mapper"
+    } else if device.starts_with("md") {
+        "mdraid"
+    } else if device.starts_with("sd") {
+        "scsi/sata"
+    } else {
+        "block"
+    };
+
+    let media = if device.starts_with("nvme") {
+        "ssd"
+    } else if device.starts_with("vd")
+        || device.starts_with("xvd")
+        || device.starts_with("dm-")
+        || mount_point.starts_with("/var/lib/")
+    {
+        "virtual"
+    } else if device.starts_with("sd") {
+        "disk"
+    } else {
+        "unknown"
+    };
+
+    DiskIdentity {
+        structure: structure.to_string(),
+        protocol: protocol.to_string(),
+        media: media.to_string(),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn classify_macos_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
+    let structure = if device.contains('s') {
+        "apfs-slice"
+    } else {
+        "darwin-disk"
+    };
+    let protocol = if device.starts_with("disk") {
+        "darwin-block"
+    } else {
+        "block"
+    };
+    let media = if mount_point.starts_with("/System/Volumes") {
+        "apfs"
+    } else {
+        "ssd"
+    };
+
+    DiskIdentity {
+        structure: structure.to_string(),
+        protocol: protocol.to_string(),
+        media: media.to_string(),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn classify_windows_disk_identity(device: &str, _mount_point: &str) -> DiskIdentity {
+    let protocol = if device.starts_with("\\\\") {
+        "unc"
+    } else {
+        "windows-volume"
+    };
+
+    DiskIdentity {
+        structure: "logical-volume".to_string(),
+        protocol: protocol.to_string(),
+        media: "unknown".to_string(),
+    }
 }
 
 fn per_second_u64(delta: u64, elapsed_secs: f64) -> u64 {

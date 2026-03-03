@@ -34,6 +34,9 @@ render_frame "tui-overview-real" "Pulsar TUI overview"
 capture_frame "tui-expert-network-real" --keys "8" --keys "q" -- target/debug/pulsar --log-level error
 render_frame "tui-expert-network-real" "Pulsar expert network view"
 
+capture_frame "tui-expert-pressure-real" --keys "7" --keys "q" -- target/debug/pulsar --log-level error
+render_frame "tui-expert-pressure-real" "Pulsar expert pressure view"
+
 capture_frame "tui-expert-jvm-real" --keys "9" --keys "q" -- target/debug/pulsar --log-level error
 render_frame "tui-expert-jvm-real" "Pulsar expert JVM view"
 
@@ -43,5 +46,6 @@ render_frame "tui-expert-disk-real" "Pulsar expert disk view"
 echo "Generated:"
 echo "  $OUT_DIR/tui-overview-real.svg"
 echo "  $OUT_DIR/tui-expert-network-real.svg"
+echo "  $OUT_DIR/tui-expert-pressure-real.svg"
 echo "  $OUT_DIR/tui-expert-jvm-real.svg"
 echo "  $OUT_DIR/tui-expert-disk-real.svg"

@@ -1089,6 +1089,9 @@ fn render_disk_table(
         .map(|disk| {
             let mut cells = vec![
                 Cell::from(truncate(&disk.device, 8)),
+                Cell::from(truncate(&disk.structure_hint, 10)),
+                Cell::from(truncate(&disk.protocol_hint, 10)),
+                Cell::from(truncate(&disk.media_hint, 8)),
                 Cell::from(truncate(&disk.mount_point, 10)),
                 Cell::from(format!("{:.1}", disk.util_pct)),
                 Cell::from(format!("{:.1}", disk.await_ms)),
@@ -1108,6 +1111,9 @@ fn render_disk_table(
     let mut widths = vec![
         Constraint::Length(9),
         Constraint::Length(11),
+        Constraint::Length(11),
+        Constraint::Length(9),
+        Constraint::Length(11),
         Constraint::Length(7),
         Constraint::Length(7),
         Constraint::Length(7),
@@ -1115,6 +1121,9 @@ fn render_disk_table(
     ];
     let mut header = vec![
         Cell::from(text(locale, "Disk", "Disk")),
+        Cell::from(text(locale, "Struct", "Struct")),
+        Cell::from(text(locale, "Proto", "Proto")),
+        Cell::from(text(locale, "Media", "Media")),
         Cell::from(text(locale, "Mount", "Mount")),
         Cell::from("Util"),
         Cell::from("Await"),
