@@ -213,6 +213,7 @@ pub fn read_disk_inventory() -> Result<Vec<RawDiskInventory>> {
     {
         flatten_lsblk_node(device, &mut inventory);
     }
+    inventory.extend(read_remote_mount_inventory());
     enrich_linux_disk_inventory(&mut inventory);
     Ok(inventory)
 }
@@ -358,6 +359,8 @@ fn flatten_lsblk_node(node: &Value, out: &mut Vec<RawDiskInventory>) {
 }
 
 fn enrich_linux_disk_inventory(items: &mut [RawDiskInventory]) {
+    let lvm_vgs = read_lvm_pv_map();
+    let lvs = read_lvm_lv_map();
     let parent_map: HashMap<String, Option<String>> = items
         .iter()
         .map(|item| (item.device.clone(), item.parent.clone()))
@@ -368,6 +371,13 @@ fn enrich_linux_disk_inventory(items: &mut [RawDiskInventory]) {
         let dm_name = read_string_file(&sys_path.join("dm/name"));
         let dm_uuid = read_string_file(&sys_path.join("dm/uuid"));
         let md_level = read_string_file(&sys_path.join("md/level"));
+
+        if item.structure == "remote-mount" {
+            item.volume_kind = remote_volume_kind(&item.filesystem);
+            item.filesystem_family = filesystem_family(&item.filesystem);
+            item.logical_stack = vec![item.device.clone()];
+            continue;
+        }
 
         if item.structure.is_empty() {
             item.structure = infer_linux_structure(&item.device, &sys_path);
@@ -386,6 +396,27 @@ fn enrich_linux_disk_inventory(items: &mut [RawDiskInventory]) {
         if item.label.is_empty() {
             item.label = dm_name.clone().unwrap_or_default();
         }
+        if let Some(vg_name) = lvm_vgs.get(&item.device) {
+            if item.volume_kind.is_empty() || item.volume_kind == "partition" {
+                item.volume_kind = "lvm-member".to_string();
+            }
+            if item.label.is_empty() {
+                item.label = vg_name.clone();
+            }
+        }
+        if let Some((vg_name, lv_name, lv_path)) = dm_name
+            .as_deref()
+            .and_then(|name| lvs.get(name))
+            .or_else(|| lvs.get(&item.device))
+        {
+            item.volume_kind = "lvm-lv".to_string();
+            if item.label.is_empty() {
+                item.label = format!("{vg_name}/{lv_name}");
+            }
+            if item.reference.is_empty() {
+                item.reference = lv_path.clone();
+            }
+        }
         item.scheduler = read_string_file(&sys_path.join("queue/scheduler"))
             .map(|value| value.replace(['[', ']'], ""))
             .unwrap_or_default();
@@ -403,6 +434,53 @@ fn enrich_linux_disk_inventory(items: &mut [RawDiskInventory]) {
         item.filesystem_family = filesystem_family(&item.filesystem);
         item.logical_stack = logical_stack_for(&item.device, &parent_map);
     }
+}
+
+fn read_remote_mount_inventory() -> Vec<RawDiskInventory> {
+    let content = match fs::read_to_string("/proc/mounts") {
+        Ok(content) => content,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut items = Vec::new();
+    for line in content.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 3 {
+            continue;
+        }
+        let source = parts[0];
+        let mount_point = parts[1];
+        let filesystem = parts[2];
+        if !is_remote_mount(source, filesystem) {
+            continue;
+        }
+
+        items.push(RawDiskInventory {
+            device: source.to_string(),
+            parent: None,
+            structure: "remote-mount".to_string(),
+            volume_kind: remote_volume_kind(filesystem),
+            filesystem: filesystem.to_string(),
+            filesystem_family: filesystem_family(filesystem),
+            label: mount_point.to_string(),
+            uuid: String::new(),
+            part_uuid: String::new(),
+            model: String::new(),
+            serial: String::new(),
+            transport: remote_transport(filesystem).to_string(),
+            reference: source.to_string(),
+            scheduler: String::new(),
+            rotational: None,
+            removable: None,
+            read_only: None,
+            mount_points: vec![mount_point.to_string()],
+            logical_stack: vec![source.to_string()],
+            slaves: Vec::new(),
+            holders: Vec::new(),
+            children: Vec::new(),
+        });
+    }
+    items
 }
 
 fn sys_block_path(device: &str) -> PathBuf {
@@ -446,6 +524,22 @@ fn infer_linux_transport(device: &str) -> &'static str {
         "loop"
     } else {
         "block"
+    }
+}
+
+fn remote_transport(filesystem: &str) -> &'static str {
+    match filesystem.to_ascii_lowercase().as_str() {
+        "nfs" | "nfs4" => "nfs",
+        "cifs" | "smb3" | "smbfs" => "smb",
+        "sshfs" => "ssh",
+        "9p" => "9p",
+        other => {
+            if other.contains("fuse") {
+                "fuse"
+            } else {
+                "remote"
+            }
+        }
     }
 }
 
@@ -519,6 +613,22 @@ fn infer_linux_volume_kind(
     }
 }
 
+fn remote_volume_kind(filesystem: &str) -> String {
+    match filesystem.to_ascii_lowercase().as_str() {
+        "nfs" | "nfs4" => "nfs-share".to_string(),
+        "cifs" | "smb3" | "smbfs" => "smb-share".to_string(),
+        "sshfs" => "sshfs-share".to_string(),
+        "9p" => "9p-share".to_string(),
+        other => {
+            if other.contains("fuse") {
+                "fuse-remote".to_string()
+            } else {
+                format!("{other}-mount")
+            }
+        }
+    }
+}
+
 fn filesystem_family(filesystem: &str) -> String {
     let fs = filesystem.to_ascii_lowercase();
     if fs.is_empty() {
@@ -533,6 +643,11 @@ fn filesystem_family(filesystem: &str) -> String {
         "xfs".to_string()
     } else if fs == "btrfs" {
         "btrfs".to_string()
+    } else if matches!(
+        fs.as_str(),
+        "nfs" | "nfs4" | "cifs" | "smb3" | "smbfs" | "sshfs" | "9p"
+    ) {
+        "remote".to_string()
     } else if fs == "apfs" || fs == "hfs" || fs == "hfs+" {
         "apple".to_string()
     } else if fs.contains("lvm") {
@@ -544,6 +659,74 @@ fn filesystem_family(filesystem: &str) -> String {
     } else {
         fs
     }
+}
+
+fn read_lvm_pv_map() -> HashMap<String, String> {
+    let Some(output) = command_output(
+        "pvs",
+        &["--noheadings", "--separator", ";", "-o", "pv_name,vg_name"],
+    ) else {
+        return HashMap::new();
+    };
+
+    output
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split(';').map(str::trim);
+            let pv = parts.next()?;
+            let vg = parts.next()?;
+            let dev = pv.strip_prefix("/dev/").unwrap_or(pv);
+            if dev.is_empty() || vg.is_empty() {
+                None
+            } else {
+                Some((dev.to_string(), vg.to_string()))
+            }
+        })
+        .collect()
+}
+
+fn read_lvm_lv_map() -> HashMap<String, (String, String, String)> {
+    let Some(output) = command_output(
+        "lvs",
+        &[
+            "--noheadings",
+            "--separator",
+            ";",
+            "-o",
+            "lv_dm_path,vg_name,lv_name,lv_path",
+        ],
+    ) else {
+        return HashMap::new();
+    };
+
+    let mut map = HashMap::new();
+    for line in output.lines() {
+        let mut parts = line.split(';').map(str::trim);
+        let dm_path = parts.next().unwrap_or_default();
+        let vg_name = parts.next().unwrap_or_default();
+        let lv_name = parts.next().unwrap_or_default();
+        let lv_path = parts.next().unwrap_or_default();
+        let key = dm_path.strip_prefix("/dev/").unwrap_or(dm_path).to_string();
+        if !key.is_empty() && !vg_name.is_empty() && !lv_name.is_empty() {
+            map.insert(
+                key,
+                (
+                    vg_name.to_string(),
+                    lv_name.to_string(),
+                    lv_path.to_string(),
+                ),
+            );
+        }
+    }
+    map
+}
+
+fn is_remote_mount(source: &str, filesystem: &str) -> bool {
+    matches!(
+        filesystem.to_ascii_lowercase().as_str(),
+        "nfs" | "nfs4" | "cifs" | "smb3" | "smbfs" | "sshfs" | "9p"
+    ) || source.starts_with("//")
+        || source.contains(':')
 }
 
 fn logical_stack_for(device: &str, parent_map: &HashMap<String, Option<String>>) -> Vec<String> {

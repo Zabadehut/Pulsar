@@ -693,23 +693,29 @@ impl Dashboard {
 
     fn reference_header_span(&self, reference: &ReferenceUiState) -> Span<'static> {
         Span::styled(
-            if reference.query.is_empty() {
-                format!(
-                    "{}:{}",
-                    text(self.locale, "index", "index"),
-                    text(self.locale, "off", "off")
-                )
-            } else {
+            if !reference.query.is_empty() {
                 format!(
                     "{}:{}",
                     text(self.locale, "search", "search"),
                     reference.query
                 )
-            },
-            if reference.query.is_empty() {
-                self.theme.muted_style()
+            } else if reference.visible {
+                format!(
+                    "{}:{}",
+                    text(self.locale, "index", "index"),
+                    text(self.locale, "on", "on")
+                )
             } else {
+                format!(
+                    "{}:{}",
+                    text(self.locale, "index", "index"),
+                    text(self.locale, "off", "off")
+                )
+            },
+            if !reference.query.is_empty() || reference.visible {
                 self.theme.highlight_style()
+            } else {
+                self.theme.muted_style()
             },
         )
     }

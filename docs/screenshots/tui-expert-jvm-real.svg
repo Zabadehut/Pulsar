@@ -7,7 +7,7 @@
 </defs>
 <rect width="1160" height="790" fill="url(#bg)"/>
 <rect x="10" y="10" width="1140" height="770" rx="12" fill="#0b1020" stroke="#334155" stroke-width="1.5"/>
-<text x="20" y="26" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> ◉ PULSAR   rocky9-workstation-master  linux  up 23h 8m  15:06:24</text>
+<text x="20" y="26" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> ◉ PULSAR   rocky9-workstation-master  linux  up 23h 13m  15:11:03</text>
 <text x="20" y="44" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">mode:processus  lang:fr  index:off</text>
 <text x="20" y="62" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">┌ ◉ ANALYSE jvm+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐</text>
 <text x="20" y="80" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">│jvm 0  threads 0  fds 0                                                                                                                   │</text>

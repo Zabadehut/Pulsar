@@ -119,6 +119,7 @@ struct DiskInventoryGroupView {
     model: String,
     protocol: String,
     media: String,
+    remote: bool,
     members: Vec<String>,
     mounted_devices: Vec<String>,
     filesystems: Vec<String>,
@@ -365,6 +366,7 @@ fn build_disk_groups(disks: &[DiskInventoryView]) -> Vec<DiskInventoryGroupView>
                 model: root.model.clone(),
                 protocol: root.protocol.clone(),
                 media: root.media.clone(),
+                remote: root.filesystem_family == "remote" || root.structure == "remote-mount",
                 members: unique_sorted(
                     members
                         .iter()

@@ -57,6 +57,7 @@ Index behavior:
 - `disk+` also exposes contention lenses (`busy`, `latency`, `queue`, waiter pressure`)
 - `inventory+` exposes a local `lsblk`-like reading with tree, volume kind, filesystem, stack path, refs, and flags
 - TUI intent split: `io` preset = broad storage-focused dashboard, `disk+` = contention/perf drill-down, `inventory+` = topology/inventory drill-down
+- Linux inventory enrichment now also tries to recognize `LVM`, `LUKS`, `multipath`, `md`, and remote filesystems like `NFS`/`SMB`
 - the standard disk views now expose `structure`, `proto`, and `media` hints to make cross-OS storage paths easier to read
 - disk inventory is moving toward an `lsblk`-like model with `parent`, `filesystem`, `uuid`, `label`, `model`, `serial`, `refs`, `mounts`, and `children`
 - `disk+` now also surfaces stack and stable-ref cues for the hottest path so UUID/ref/parentage stay visible in the TUI
