@@ -101,8 +101,8 @@ sysray record \
   --compress zip
 
 sysray archive zip \
-  --input /var/lib/sysray/captures/pulsar_20260303_140000.jsonl \
-  --output /var/lib/sysray/captures/pulsar_20260303_140000.jsonl.zip
+  --input /var/lib/sysray/captures/sysray_20260303_140000.jsonl \
+  --output /var/lib/sysray/captures/sysray_20260303_140000.jsonl.zip
 ```
 
 ## Rust-Only Compression Requirement

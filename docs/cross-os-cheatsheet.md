@@ -86,9 +86,9 @@ Use one directory per host:
 
 ```text
 captures/
-  pulsar_active.jsonl
-  pulsar_20260303_130000.jsonl.zip
-  pulsar_20260303_140000.jsonl.zip
+  sysray_active.jsonl
+  sysray_20260303_130000.jsonl.zip
+  sysray_20260303_140000.jsonl.zip
 ```
 
 ## Raw Rotation Matrix
@@ -121,8 +121,8 @@ sysray record \
 
 ```bash
 sysray archive zip \
-  --input ./captures/pulsar_20260303_140000.jsonl \
-  --output ./captures/pulsar_20260303_140000.jsonl.zip
+  --input ./captures/sysray_20260303_140000.jsonl \
+  --output ./captures/sysray_20260303_140000.jsonl.zip
 ```
 
 ## Compression Requirements

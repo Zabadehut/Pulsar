@@ -151,8 +151,8 @@ These shapes are documented for roadmap clarity only. They do not exist in the c
 
 ```bash
 sysray archive zip \
-  --input ./captures/pulsar_20260303_140000.jsonl \
-  --output ./captures/pulsar_20260303_140000.jsonl.zip
+  --input ./captures/sysray_20260303_140000.jsonl \
+  --output ./captures/sysray_20260303_140000.jsonl.zip
 ```
 
 Constraints for that future archive path:

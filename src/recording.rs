@@ -162,7 +162,7 @@ impl Recorder {
         let previous = self.active.take();
         let path = self
             .output
-            .join(format!("pulsar_{}.jsonl", now.format("%Y%m%d_%H%M%S_%3f")));
+            .join(format!("sysray_{}.jsonl", now.format("%Y%m%d_%H%M%S_%3f")));
         let file = OpenOptions::new().create(true).append(true).open(&path)?;
         self.active = Some(ActiveFile {
             path: path.clone(),
@@ -218,7 +218,7 @@ fn list_segments(output: &Path) -> Result<Vec<PathBuf>> {
             .file_name()
             .and_then(|value| value.to_str())
             .is_some_and(|name| {
-                name.starts_with("pulsar_")
+                name.starts_with("sysray_")
                     && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zip"))
             })
         {
@@ -319,7 +319,7 @@ mod tests {
 
         let mut recorder = Recorder::new(options).unwrap();
         for index in 0..3 {
-            let path = output.join(format!("pulsar_20260303_12000{index}_000.jsonl"));
+            let path = output.join(format!("sysray_20260303_12000{index}_000.jsonl"));
             fs::write(path, "{}\n").unwrap();
         }
         recorder.rotate_file(Utc::now()).unwrap();
@@ -339,7 +339,7 @@ mod tests {
         let output = std::env::temp_dir().join(format!("sysray-recorder-zip-test-{suffix}"));
         fs::create_dir_all(&output).unwrap();
 
-        let raw = output.join("pulsar_20260303_120000_000.jsonl");
+        let raw = output.join("sysray_20260303_120000_000.jsonl");
         fs::write(&raw, "{\"ok\":true}\n").unwrap();
 
         let zip_path = compress_segment_to_zip(&raw).unwrap();

@@ -128,8 +128,8 @@ This is the portable command shape to aim for if compression is added without sh
 
 ```bash
 sysray archive zip \
-  --input ./captures/pulsar_20260303_140000.jsonl \
-  --output ./captures/pulsar_20260303_140000.jsonl.zip
+  --input ./captures/sysray_20260303_140000.jsonl \
+  --output ./captures/sysray_20260303_140000.jsonl.zip
 ```
 
 Design constraints:
@@ -144,9 +144,9 @@ Design constraints:
 Use predictable file names:
 
 ```text
-pulsar_active.jsonl
-pulsar_YYYYMMDD_HH0000.jsonl
-pulsar_YYYYMMDD_HH0000.jsonl.zip
+sysray_active.jsonl
+sysray_YYYYMMDD_HH0000.jsonl
+sysray_YYYYMMDD_HH0000.jsonl.zip
 ```
 
 ## Best-Fit Audience

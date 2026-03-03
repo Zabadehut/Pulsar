@@ -61,7 +61,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-find_pulsar_bin() {
+find_sysray_bin() {
   if [[ -n "$SYSRAY_BIN" && -x "$SYSRAY_BIN" ]]; then
     printf '%s\n' "$SYSRAY_BIN"
     return
@@ -81,7 +81,7 @@ find_pulsar_bin() {
   printf '%s\n' "$ROOT_DIR/target/debug/sysray"
 }
 
-SYSRAY_BIN="$(find_pulsar_bin)"
+SYSRAY_BIN="$(find_sysray_bin)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_DIR="$OUTPUT_ROOT/$RUN_ID"
 RAW_DIR="$RUN_DIR/raw"

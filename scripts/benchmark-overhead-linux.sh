@@ -94,7 +94,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-find_pulsar_bin() {
+find_sysray_bin() {
   if [[ -n "$SYSRAY_BIN" && -x "$SYSRAY_BIN" ]]; then
     printf '%s\n' "$SYSRAY_BIN"
     return
@@ -114,7 +114,7 @@ find_pulsar_bin() {
   printf '%s\n' "$ROOT_DIR/target/debug/sysray"
 }
 
-SYSRAY_BIN="$(find_pulsar_bin)"
+SYSRAY_BIN="$(find_sysray_bin)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_DIR="$OUTPUT_ROOT/$RUN_ID"
 SAMPLES_DIR="$RUN_DIR/samples"
@@ -369,7 +369,7 @@ measure_loop_command() {
   fi
 }
 
-measure_pulsar_record() {
+measure_sysray_record() {
   local output_path="$SYSRAY_RECORD_DIR"
   local command
 
@@ -377,7 +377,7 @@ measure_pulsar_record() {
   measure_command "sysray" "interrupt_after_duration" "$command" "$output_path"
 }
 
-measure_pulsar_snapshot_json() {
+measure_sysray_snapshot_json() {
   local output_path="$RUN_DIR/sysray-snapshot-json.ndjson"
   local command
 
@@ -416,8 +416,8 @@ measure_sar() {
   measure_command "sar" "wait_for_exit" "sar -u -r -d -n DEV $INTERVAL_SECS $COUNT > \"$output_path\"" "$output_path"
 }
 
-measure_pulsar_record
-measure_pulsar_snapshot_json
+measure_sysray_record
+measure_sysray_snapshot_json
 measure_nmon
 measure_vmstat
 measure_sar

@@ -136,7 +136,7 @@ sysray top --sort cpu --limit 20
 sysray watch --pid 1234
 
 # Replay a recorded session
-sysray replay ./captures/pulsar_20260303_130000.jsonl
+sysray replay ./captures/sysray_20260303_130000.jsonl
 
 # Explain a technical term
 sysray explain latency
