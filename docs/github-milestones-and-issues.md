@@ -10,17 +10,17 @@ Goal: make the current Linux foundation testable, measurable, and publicly defen
 
 Suggested issues:
 
-1. Add unit tests for Linux CPU, memory, network, disk, process, and system collectors
-2. Add snapshot backward-compatibility tests for missing fields
-3. Add benchmark harness for collection overhead
-4. Validate `pulsar service install/status/uninstall` on Linux user services
-5. Mark or implement incomplete CLI stubs (`watch`, `replay`)
-6. Document measured local overhead in docs
+1. Add benchmark harness for collection overhead
+2. Document measured local overhead in docs
+3. Expand Linux collector regression coverage beyond the current baseline
+4. Validate `pulsar service install/status/uninstall` on Linux user services under stricter scenarios
+5. Keep CLI help and docs aligned with implemented commands
+6. Stress-test Linux behavior on busy hosts
 
 Definition of done:
 
-- tests exist and pass on Linux
-- compatibility behavior is verified
+- tests remain green and cover stressed Linux scenarios
+- compatibility behavior remains verified
 - overhead is measured instead of assumed
 
 ## Milestone 2: Complete V1 Linux Quality
@@ -89,7 +89,7 @@ Goal: move beyond parity and add strong reasons to use Pulsar over legacy tools.
 Suggested issues:
 
 1. Improve JVM awareness beyond process-name heuristics
-2. Implement replay mode
+2. Deepen replay mode UX and operator workflow
 3. Add Linux cgroup v2 collector
 4. Add Linux PSI collector
 5. Add synthetic health indices

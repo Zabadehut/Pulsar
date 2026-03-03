@@ -89,6 +89,12 @@ pulsar server --port 9090
 # Top processes
 pulsar top --sort cpu --limit 20
 
+# Watch one process
+pulsar watch --pid 1234
+
+# Replay a recorded session
+pulsar replay ./captures/pulsar_20260303_130000.jsonl
+
 # Service integration
 pulsar service install
 pulsar service status

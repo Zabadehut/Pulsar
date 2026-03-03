@@ -136,7 +136,7 @@ Value scale:
 | [x] CSV export | Yes | Partial | Partial | shared exporter path, less explicitly smoke-tested | V1 | S | Medium | compatibility story |
 | [x] Prometheus text export | Yes | Partial | Partial | shared exporter with native CI smoke tests | V1 | S | High | strong integration point |
 | [x] Record mode | Yes | Partial | Partial | shared runtime, Linux remains the deepest runtime path | V1 | M | High | useful ops feature |
-| [ ] Replay mode | No | No | No | CLI stub only | V2 | M | High | important differentiator |
+| [x] Replay mode | Partial | Partial | Partial | basic replay command exists, but feature depth and UX remain limited | V2 | M | High | important differentiator |
 | [x] Service install scaffolding | Partial | Partial | Partial | templates + CLI exist, with dedicated CI validation for install/status/uninstall flows | V1/P1 | M | Medium | native managers still have OS-specific constraints |
 | [ ] Multi-host / distributed mode | No | No | No | not implemented | V3 | XL | Strategic | entirely different architecture |
 | [ ] Enterprise controls | No | No | No | not implemented | Enterprise | XL | Strategic | not V1 work |

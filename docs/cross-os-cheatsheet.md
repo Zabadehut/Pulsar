@@ -59,7 +59,7 @@ pulsar
 pulsar snapshot --format json
 pulsar record --interval 5s --output ./captures
 pulsar service install
-launchctl list dev.kvdb.pulsar
+launchctl list com.zabadehut.pulsar
 ```
 
 ### Windows

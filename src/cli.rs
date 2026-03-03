@@ -16,7 +16,7 @@ Linux task intent:
 
 macOS launchd:
   pulsar service install
-  launchctl list | grep dev.kvdb.pulsar
+  launchctl list | grep com.zabadehut.pulsar
 
 Windows Task Scheduler:
   pulsar.exe service install
@@ -34,7 +34,7 @@ Built-in service integration:
 #[command(
     name = "pulsar",
     version,
-    author = "Kevin Vanden-Brande <kevin@kvdb.dev>",
+    author = "Kevin Vanden-Brande <zaba88@hotmail.fr>",
     about = "Local-first system observability engine for Linux, macOS, and Windows",
     after_help = AFTER_HELP,
     long_about = "Pulsar is a local-first system observability engine.\n\nAvailable today:\n- interactive TUI\n- one-shot snapshots in json/csv/prometheus\n- local recording to .jsonl\n- top/watch process inspection\n- OS service scaffolding\n\nNot in the CLI yet:\n- recording rotation by hour/day/size\n- built-in archive zip compression\n\nSee docs/help.md for the operator cheat sheet and planned recording/archive workflow."

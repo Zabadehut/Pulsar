@@ -17,7 +17,7 @@ Legend:
 | CPU | Context switches | Implemented | Planned | Planned | Linux only today |
 | CPU | Interrupts | Implemented | Planned | Planned | Linux only today |
 | CPU | iowait % | Implemented | Planned | Planned | Linux only today |
-| CPU | steal % | Implemented | Partial | Partial | placeholder-level values outside Linux |
+| CPU | steal % | Implemented | Partial | Partial | meaningful on Linux; fallback values outside Linux still need deeper OS-native semantics |
 | Memory | Total / used / free / available | Implemented | Partial | Partial | baseline host memory collection exists on macOS and Windows |
 | Memory | Cache / buffers / dirty | Implemented | Partial | Planned | partial field mapping on macOS, not exposed on Windows |
 | Memory | Swap total / used | Implemented | Partial | Partial | baseline swap reading exists on macOS and Windows |

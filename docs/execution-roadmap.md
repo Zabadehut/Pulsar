@@ -19,17 +19,17 @@ Goal: make the current Linux-first foundation defensible.
 
 Order:
 
-1. Add Linux collector tests
-2. Add snapshot compatibility tests
-3. Add benchmark harness for collection and snapshot overhead
-4. Validate service flows on Linux
-5. Mark or finish incomplete CLI stubs
+1. Add benchmark harness for collection and snapshot overhead
+2. Document measured overhead in public docs
+3. Harden service validation on Linux and keep OS-specific constraints explicit
+4. Expand regression coverage around stressed Linux hosts
+5. Keep CLI help and docs aligned with implemented commands
 
 Exit criteria:
 
 - `cargo fmt`, `clippy`, `build`, and `test` pass
-- Linux collectors have basic regression coverage
-- backward compatibility is tested
+- Linux collectors have broader regression coverage
+- backward compatibility stays tested
 - measured overhead exists in documented form
 
 What can be said after this phase:
@@ -90,7 +90,7 @@ Goal: add the first set of metrics that clearly separate Pulsar from legacy tool
 Order:
 
 1. Improve JVM awareness
-2. Add replay mode
+2. Deepen replay mode UX and operator workflow
 3. Add cgroup v2 / container metrics on Linux
 4. Add PSI on Linux
 5. Add synthetic health indices
@@ -197,18 +197,17 @@ What can be said after this phase:
 If execution starts now, the next exact order should be:
 
 1. Linux collector tests
-2. Snapshot compatibility tests
-3. Benchmark harness for overhead
-4. Real disk await / latency
-5. Linux service flow validation
-6. macOS CPU/memory/system
-7. macOS disk/network/process
-8. Windows CPU/memory/system
-9. Windows disk/network/process
-10. Replay mode
-11. Better JVM awareness
-12. cgroup v2
-13. PSI
+2. Benchmark harness for overhead
+3. Measured overhead docs
+4. Linux service flow validation hardening
+5. Stress validation for busy Linux hosts
+6. macOS CPU/memory/system parity hardening
+7. macOS disk/network/process parity hardening
+8. Windows CPU/memory/system parity hardening
+9. Windows disk/network/process parity hardening
+10. Better JVM awareness
+11. cgroup v2
+12. PSI
 
 ## What Not To Pull Forward Too Early
 

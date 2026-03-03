@@ -137,7 +137,7 @@ cp config/pulsar.toml.example "$STANDALONE_DIR/pulsar.toml.example"
 cp README.md "$STANDALONE_DIR/README.md"
 
 cp deploy/systemd/pulsar.service "$PREREQS_DIR/linux/pulsar.service"
-cp deploy/launchd/dev.kvdb.pulsar.plist "$PREREQS_DIR/macos/dev.kvdb.pulsar.plist"
+cp deploy/launchd/com.zabadehut.pulsar.plist "$PREREQS_DIR/macos/com.zabadehut.pulsar.plist"
 cp deploy/windows/pulsar-task.xml "$PREREQS_DIR/windows/pulsar-task.xml"
 cp config/pulsar.toml.example "$PREREQS_DIR/linux/pulsar.toml.example"
 cp config/pulsar.toml.example "$PREREQS_DIR/macos/pulsar.toml.example"
@@ -155,7 +155,7 @@ cat > "$PREREQS_DIR/README.txt" <<EOF
 Install prerequisite files bundled by OS:
 
 - linux/pulsar.service: systemd user service template
-- macos/dev.kvdb.pulsar.plist: launchd agent template
+- macos/com.zabadehut.pulsar.plist: launchd agent template
 - windows/pulsar-task.xml: Task Scheduler template
 
 Each OS folder also includes pulsar.toml.example as a starter configuration.

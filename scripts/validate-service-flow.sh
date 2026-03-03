@@ -25,7 +25,7 @@ case "${platform}" in
     ;;
   Darwin)
     runner_path="${HOME}/Library/Application Support/Pulsar/pulsar-service.sh"
-    service_path="${HOME}/Library/LaunchAgents/dev.kvdb.pulsar.plist"
+    service_path="${HOME}/Library/LaunchAgents/com.zabadehut.pulsar.plist"
     config_path="${HOME}/Library/Application Support/Pulsar/pulsar.toml"
     status_is_optional=1
     ;;

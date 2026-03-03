@@ -157,15 +157,15 @@ mod linux {
 mod macos {
     use super::*;
 
-    const TEMPLATE: &str = include_str!("../deploy/launchd/dev.kvdb.pulsar.plist");
+    const TEMPLATE: &str = include_str!("../deploy/launchd/com.zabadehut.pulsar.plist");
 
     pub fn run(action: ServiceAction) -> Result<()> {
         let app_dir = home_dir()?.join("Library/Application Support/Pulsar");
         let config_path = app_dir.join("pulsar.toml");
         let output_dir = app_dir.join("data");
         let runner_path = app_dir.join("pulsar-service.sh");
-        let plist_path = home_dir()?.join("Library/LaunchAgents/dev.kvdb.pulsar.plist");
-        let label = "dev.kvdb.pulsar";
+        let plist_path = home_dir()?.join("Library/LaunchAgents/com.zabadehut.pulsar.plist");
+        let label = "com.zabadehut.pulsar";
         match action {
             ServiceAction::Install => {
                 ensure_dir(&app_dir)?;

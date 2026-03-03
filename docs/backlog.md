@@ -4,14 +4,14 @@ This backlog translates product vision into concrete execution priorities.
 
 ## P0: Publicly Credible Foundation
 
-These items must be done before making strong public claims.
+These items must be done before making stronger public claims.
 
-- Add unit and integration tests for Linux collectors
-- Add CI coverage for build, fmt, clippy, and tests
-- Validate service install/uninstall/status flows on each OS
-- Document actual supported feature set and platform scope
-- Add benchmark harness for CPU, memory, and snapshot overhead
-- Remove or clearly mark all incomplete CLI stubs
+- Expand regression coverage beyond the current Linux collector baseline
+- Validate service install/uninstall/status flows on each OS under stricter scenarios
+- Document the actual supported feature set and platform scope
+- Add a repeatable benchmark harness for CPU, memory, and snapshot overhead
+- Publish measured overhead instead of aspirational performance language
+- Keep docs and CLI help aligned with implemented commands
 
 ## P1: V1 Linux Hardening
 

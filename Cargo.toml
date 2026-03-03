@@ -2,10 +2,10 @@
 name        = "pulsar"
 version     = "0.1.0"
 edition     = "2021"
-authors     = ["Kevin Vanden-Brande <kevin@kvdb.dev>"]
+authors     = ["Kevin Vanden-Brande <zaba88@hotmail.fr>"]
 license     = "Apache-2.0"
 description = "Modern cross-platform system observability engine"
-repository  = "https://github.com/kvdb/pulsar"
+repository  = "https://github.com/Zabadehut/Pulsar"
 keywords    = ["monitoring", "observability", "system", "nmon", "prometheus"]
 categories  = ["command-line-utilities", "os"]
 readme      = "README.md"
