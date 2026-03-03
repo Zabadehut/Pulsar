@@ -1,10 +1,27 @@
 use crate::collectors::{AlertLevel, LogEntry};
 use chrono::Utc;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
+
+#[derive(Debug, Clone, Default)]
+pub struct FileTailState {
+    pub offset: u64,
+    pub file_size: u64,
+    pub modified_ts: i64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TailRefresh {
+    pub entries: Vec<LogEntry>,
+    pub active_files: Vec<String>,
+    pub rotated_files: usize,
+}
 
 pub fn read_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntry> {
     #[cfg(target_os = "linux")]
@@ -23,12 +40,13 @@ pub fn read_system_events(window_secs: u64, max_entries: usize) -> Vec<LogEntry>
     Vec::new()
 }
 
-pub fn read_tailed_paths(
+pub fn refresh_tailed_paths(
     patterns: &[String],
+    states: &mut HashMap<String, FileTailState>,
     recent_secs: u64,
     max_files: usize,
     max_lines_per_file: usize,
-) -> Vec<LogEntry> {
+) -> TailRefresh {
     let now = SystemTime::now();
     let recent_threshold = now
         .checked_sub(Duration::from_secs(recent_secs))
@@ -50,46 +68,65 @@ pub fn read_tailed_paths(
             if modified < recent_threshold || !metadata.is_file() {
                 return None;
             }
-            Some((modified, path))
+            let file_size = metadata.len();
+            let modified_ts = system_time_to_timestamp(modified);
+            let previous = states.get(path.to_string_lossy().as_ref());
+            let active = previous
+                .map(|state| state.file_size != file_size || state.modified_ts != modified_ts)
+                .unwrap_or(true);
+            Some((active, modified, file_size, modified_ts, path))
         })
         .collect::<Vec<_>>();
 
-    recent_files.sort_by(|a, b| b.0.cmp(&a.0));
+    recent_files.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
 
-    let mut entries = Vec::new();
-    for (_, path) in recent_files.into_iter().take(max_files) {
-        let lines = tail_lines(&path, max_lines_per_file);
-        let timestamp = file_timestamp(&path);
+    let mut refresh = TailRefresh::default();
+    let selected = recent_files.into_iter().take(max_files).collect::<Vec<_>>();
+    let selected_keys = selected
+        .iter()
+        .map(|(_, _, _, _, path)| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    states.retain(|path, _| selected_keys.iter().any(|selected| selected == path));
+
+    for (active, _, file_size, modified_ts, path) in selected {
+        let path_key = path.to_string_lossy().to_string();
+        let previous = states.get(&path_key).cloned().unwrap_or_default();
+        let (lines, state, rotated) =
+            read_incremental_lines(&path, &previous, max_lines_per_file, file_size, modified_ts);
+
+        if active {
+            refresh.active_files.push(path_key.clone());
+        }
+        if rotated {
+            refresh.rotated_files += 1;
+        }
+        states.insert(path_key.clone(), state);
+
         for line in lines {
             let trimmed = line.trim();
             if trimmed.is_empty() {
                 continue;
             }
-            entries.push(LogEntry {
-                timestamp,
-                level: infer_level(trimmed),
-                source: "file".to_string(),
-                origin: path.display().to_string(),
-                message: trimmed.to_string(),
-            });
+            refresh
+                .entries
+                .push(parse_file_log_line(trimmed, &path_key, modified_ts));
         }
     }
 
-    entries.sort_by(|a, b| {
-        b.timestamp
-            .cmp(&a.timestamp)
+    refresh.entries.sort_by(|a, b| {
+        severity_rank(&b.level)
+            .cmp(&severity_rank(&a.level))
+            .then_with(|| b.timestamp.cmp(&a.timestamp))
             .then_with(|| a.origin.cmp(&b.origin))
     });
-    entries
+    refresh
 }
 
-fn file_timestamp(path: &Path) -> i64 {
-    fs::metadata(path)
-        .ok()
-        .and_then(|metadata| metadata.modified().ok())
-        .and_then(|modified| modified.duration_since(SystemTime::UNIX_EPOCH).ok())
+fn system_time_to_timestamp(value: SystemTime) -> i64 {
+    value
+        .duration_since(SystemTime::UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)
-        .unwrap_or_else(|| Utc::now().timestamp())
+        .unwrap_or_else(|_| Utc::now().timestamp())
 }
 
 fn tail_lines(path: &Path, max_lines: usize) -> Vec<String> {
@@ -102,6 +139,100 @@ fn tail_lines(path: &Path, max_lines: usize) -> Vec<String> {
         lines = lines.split_off(lines.len() - max_lines);
     }
     lines
+}
+
+fn read_incremental_lines(
+    path: &Path,
+    previous: &FileTailState,
+    max_lines: usize,
+    file_size: u64,
+    modified_ts: i64,
+) -> (Vec<String>, FileTailState, bool) {
+    if previous.offset == 0 || previous.file_size == 0 {
+        return (
+            tail_lines(path, max_lines),
+            FileTailState {
+                offset: file_size,
+                file_size,
+                modified_ts,
+            },
+            false,
+        );
+    }
+
+    if file_size < previous.offset {
+        return (
+            tail_lines(path, max_lines),
+            FileTailState {
+                offset: file_size,
+                file_size,
+                modified_ts,
+            },
+            true,
+        );
+    }
+
+    if file_size == previous.offset && previous.modified_ts == modified_ts {
+        return (
+            Vec::new(),
+            FileTailState {
+                offset: file_size,
+                file_size,
+                modified_ts,
+            },
+            false,
+        );
+    }
+
+    let Ok(file) = File::open(path) else {
+        return (
+            Vec::new(),
+            FileTailState {
+                offset: previous.offset,
+                file_size,
+                modified_ts,
+            },
+            false,
+        );
+    };
+    let mut reader = BufReader::new(file);
+    if reader.seek(SeekFrom::Start(previous.offset)).is_err() {
+        return (
+            tail_lines(path, max_lines),
+            FileTailState {
+                offset: file_size,
+                file_size,
+                modified_ts,
+            },
+            true,
+        );
+    }
+
+    let mut lines = Vec::new();
+    let mut buffer = String::new();
+    loop {
+        buffer.clear();
+        let Ok(bytes_read) = reader.read_line(&mut buffer) else {
+            break;
+        };
+        if bytes_read == 0 {
+            break;
+        }
+        lines.push(buffer.trim_end_matches(['\n', '\r']).to_string());
+    }
+    if lines.len() > max_lines {
+        lines = lines.split_off(lines.len() - max_lines);
+    }
+
+    (
+        lines,
+        FileTailState {
+            offset: file_size,
+            file_size,
+            modified_ts,
+        },
+        false,
+    )
 }
 
 fn expand_pattern(pattern: &str) -> Vec<PathBuf> {
@@ -205,6 +336,99 @@ fn infer_level(message: &str) -> AlertLevel {
         AlertLevel::Warning
     } else {
         AlertLevel::Info
+    }
+}
+
+fn parse_file_log_line(message: &str, path: &str, timestamp: i64) -> LogEntry {
+    if let Some(entry) = parse_json_log_line(message, path, timestamp) {
+        return entry;
+    }
+    if let Some(entry) = parse_nginx_log_line(message, path, timestamp) {
+        return entry;
+    }
+
+    LogEntry {
+        timestamp,
+        level: infer_level(message),
+        source: infer_source(path, message),
+        origin: path.to_string(),
+        message: message.to_string(),
+    }
+}
+
+fn parse_json_log_line(message: &str, path: &str, timestamp: i64) -> Option<LogEntry> {
+    let value = serde_json::from_str::<Value>(message).ok()?;
+    let text = json_string(&value, "message")
+        .or_else(|| json_string(&value, "msg"))
+        .or_else(|| json_string(&value, "event"))
+        .or_else(|| json_string(&value, "log"))?;
+    let level = json_string(&value, "level")
+        .or_else(|| json_string(&value, "severity"))
+        .or_else(|| json_string(&value, "lvl"))
+        .unwrap_or_default();
+    let source = json_string(&value, "logger")
+        .or_else(|| json_string(&value, "component"))
+        .or_else(|| json_string(&value, "service"))
+        .or_else(|| json_string(&value, "target"))
+        .unwrap_or_else(|| infer_source(path, &text));
+
+    Some(LogEntry {
+        timestamp,
+        level: infer_level(&level),
+        source,
+        origin: path.to_string(),
+        message: text,
+    })
+}
+
+fn parse_nginx_log_line(message: &str, path: &str, timestamp: i64) -> Option<LogEntry> {
+    if !(message.contains("nginx") || path.contains("nginx") || message.contains('[')) {
+        return None;
+    }
+    let level = if message.contains("[error]") || message.contains("[crit]") {
+        AlertLevel::Critical
+    } else if message.contains("[warn]") {
+        AlertLevel::Warning
+    } else {
+        infer_level(message)
+    };
+
+    Some(LogEntry {
+        timestamp,
+        level,
+        source: "nginx".to_string(),
+        origin: path.to_string(),
+        message: message.to_string(),
+    })
+}
+
+fn infer_source(path: &str, message: &str) -> String {
+    let lowered_path = path.to_ascii_lowercase();
+    let lowered_message = message.to_ascii_lowercase();
+    if lowered_path.contains("nginx") || lowered_message.contains("nginx") {
+        "nginx".to_string()
+    } else if lowered_path.contains("jvm")
+        || lowered_path.contains("java")
+        || lowered_message.contains("exception")
+        || lowered_message.contains("stacktrace")
+    {
+        "jvm".to_string()
+    } else if lowered_path.contains("syslog") {
+        "syslog".to_string()
+    } else {
+        Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("file")
+            .to_string()
+    }
+}
+
+fn severity_rank(level: &AlertLevel) -> usize {
+    match level {
+        AlertLevel::Critical => 3,
+        AlertLevel::Warning => 2,
+        AlertLevel::Info => 1,
     }
 }
 
@@ -466,11 +690,78 @@ fn json_string(value: &Value, key: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn wildcard_match_supports_star_and_question_mark() {
         assert!(wildcard_match(b"/var/log/*.log", b"/var/log/sys.log"));
         assert!(wildcard_match(b"/tmp/app-?.txt", b"/tmp/app-1.txt"));
         assert!(!wildcard_match(b"/tmp/app-?.txt", b"/tmp/app-10.txt"));
+    }
+
+    #[test]
+    fn refresh_tailed_paths_reads_only_new_lines() {
+        let dir = std::env::temp_dir().join(format!("pulsar-log-test-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let file = dir.join("app.log");
+        fs::write(&file, "first\n").unwrap();
+
+        let mut states = HashMap::new();
+        let first = refresh_tailed_paths(
+            &[file.to_string_lossy().to_string()],
+            &mut states,
+            3600,
+            4,
+            20,
+        );
+        assert_eq!(first.entries.len(), 1);
+
+        let mut handle = File::options().append(true).open(&file).unwrap();
+        writeln!(handle, "second").unwrap();
+        writeln!(handle, "third").unwrap();
+
+        let second = refresh_tailed_paths(
+            &[file.to_string_lossy().to_string()],
+            &mut states,
+            3600,
+            4,
+            20,
+        );
+        let messages = second
+            .entries
+            .iter()
+            .map(|entry| entry.message.as_str())
+            .collect::<Vec<_>>();
+        assert!(messages.iter().any(|message| *message == "second"));
+        assert!(messages.iter().any(|message| *message == "third"));
+        assert!(!messages.iter().any(|message| *message == "first"));
+    }
+
+    #[test]
+    fn refresh_tailed_paths_detects_truncation() {
+        let dir = std::env::temp_dir().join(format!("pulsar-log-trunc-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let file = dir.join("rotate.log");
+        fs::write(&file, "before\n").unwrap();
+
+        let mut states = HashMap::new();
+        let _ = refresh_tailed_paths(
+            &[file.to_string_lossy().to_string()],
+            &mut states,
+            3600,
+            4,
+            20,
+        );
+
+        fs::write(&file, "after\n").unwrap();
+        let refresh = refresh_tailed_paths(
+            &[file.to_string_lossy().to_string()],
+            &mut states,
+            3600,
+            4,
+            20,
+        );
+        assert_eq!(refresh.rotated_files, 1);
+        assert!(refresh.entries.iter().any(|entry| entry.message == "after"));
     }
 }

@@ -11,8 +11,11 @@ use ratatui::{
 pub struct LogWidgetState<'a> {
     pub locale: Locale,
     pub targets: &'a [String],
+    pub active_files: &'a [String],
     pub query: &'a str,
     pub input_active: bool,
+    pub errors_only: bool,
+    pub rotated_files: usize,
     pub entries: &'a [LogEntry],
     pub error: Option<&'a str>,
 }
@@ -68,6 +71,36 @@ pub fn render(frame: &mut Frame, area: Rect, state: LogWidgetState<'_>, theme: &
     }
 
     lines.push(Line::default());
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("{}: ", text(state.locale, "mode", "mode")),
+            theme.highlight_style(),
+        ),
+        Span::raw(if state.errors_only {
+            text(state.locale, "erreurs", "errors")
+        } else {
+            text(state.locale, "tout", "all")
+        }),
+        Span::raw("  "),
+        Span::styled(
+            format!("{}: ", text(state.locale, "actifs", "active")),
+            theme.highlight_style(),
+        ),
+        Span::raw(state.active_files.len().to_string()),
+        Span::raw("  "),
+        Span::styled(
+            format!("{}: ", text(state.locale, "rotations", "rotations")),
+            theme.highlight_style(),
+        ),
+        Span::raw(state.rotated_files.to_string()),
+    ]));
+    if !state.active_files.is_empty() {
+        lines.push(Line::from(truncate(
+            &state.active_files.join(", "),
+            inner.width as usize,
+        )));
+    }
+
     lines.push(Line::from(vec![
         Span::styled(
             format!("{}: ", text(state.locale, "saisie", "input")),

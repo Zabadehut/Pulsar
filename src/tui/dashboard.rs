@@ -17,6 +17,7 @@ use ratatui::{
     widgets::Paragraph,
     Frame,
 };
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Panel {
@@ -142,6 +143,10 @@ pub struct LogUiState {
     pub query: String,
     pub targets: Vec<String>,
     pub entries: Vec<LogEntry>,
+    pub active_files: Vec<String>,
+    pub file_states: HashMap<String, log_sources::FileTailState>,
+    pub errors_only: bool,
+    pub rotated_files: usize,
     pub last_error: Option<String>,
     pub last_refresh_ts: i64,
 }
@@ -556,15 +561,29 @@ impl Dashboard {
                 .cmp(&a.timestamp)
                 .then_with(|| a.origin.cmp(&b.origin))
         });
+        let filtered_entries = entries
+            .into_iter()
+            .filter(|entry| {
+                !logs.errors_only
+                    || matches!(
+                        entry.level,
+                        crate::collectors::AlertLevel::Critical
+                            | crate::collectors::AlertLevel::Warning
+                    )
+            })
+            .collect::<Vec<_>>();
         log_widget::render(
             frame,
             area,
             log_widget::LogWidgetState {
                 locale: self.locale,
                 targets: &logs.targets,
+                active_files: &logs.active_files,
                 query: &logs.query,
                 input_active: logs.input_active,
-                entries: &entries,
+                errors_only: logs.errors_only,
+                rotated_files: logs.rotated_files,
+                entries: &filtered_entries,
                 error: logs.last_error.as_deref(),
             },
             &self.theme,
@@ -1063,6 +1082,16 @@ impl Dashboard {
                 ":{}  ",
                 text(self.locale, "ajouter chemin", "add path")
             )),
+            hotkey_span("e", self.theme.highlight_style()),
+            Span::raw(format!(
+                ":{}({})  ",
+                text(self.locale, "erreurs", "errors"),
+                if logs.errors_only {
+                    text(self.locale, "on", "on")
+                } else {
+                    text(self.locale, "off", "off")
+                }
+            )),
             hotkey_span("enter", self.theme.highlight_style()),
             Span::raw(format!(
                 ":{}  ",
@@ -1245,12 +1274,16 @@ impl Dashboard {
         max_files: usize,
         max_lines_per_file: usize,
     ) {
-        logs.entries = log_sources::read_tailed_paths(
+        let refresh = log_sources::refresh_tailed_paths(
             &logs.targets,
+            &mut logs.file_states,
             recent_file_secs,
             max_files,
             max_lines_per_file,
         );
+        logs.entries = refresh.entries;
+        logs.active_files = refresh.active_files;
+        logs.rotated_files = refresh.rotated_files;
         logs.last_refresh_ts = chrono::Utc::now().timestamp();
     }
 }

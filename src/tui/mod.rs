@@ -179,6 +179,10 @@ pub async fn run_tui(
                         logs.input_active = true;
                         terminal.clear()?;
                     }
+                    KeyCode::Char('e') | KeyCode::Char('E') if logs.visible => {
+                        logs.errors_only = !logs.errors_only;
+                        terminal.clear()?;
+                    }
                     KeyCode::Esc => {
                         reference.input_active = false;
                         if logs.visible {

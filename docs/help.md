@@ -36,6 +36,7 @@ TUI knowledge helper:
 - `?` toggles the technical index
 - `l` opens the live logs pane
 - `L` adds a watched path or pattern to the live logs pane
+- `e` toggles the logs pane between `all` and `errors` focus
 - `1`..`6` switch operator presets (`overview`, `io`, `network`, `process`, `pressure`, `full`)
 - `7`..`0` open expert local diagnostics (`pressure+`, `network+`, `jvm+`, `disk+`)
 - `g` opens `inventory+` for a local disk tree / stack view
@@ -66,6 +67,8 @@ Index behavior:
 - CSV and Prometheus exports now also surface disk inventory categories such as `volume_kind`, `filesystem_family`, relation counts, stack depth, and disk flags
 - the alerts panel now also surfaces recent native OS events (`info`, `warning`, `error`) when the current OS exposes them naturally
 - the live logs pane merges those native OS events with tailed file targets from recent files under the watched paths/patterns
+- watched files are now followed incrementally with offsets, and truncation/rotation is detected so the pane behaves more like a multi-file `tail`
+- the logs pane prioritizes files that are actively being written and can be switched to an error-focused view for faster triage
 - the standard disk views now expose `structure`, `proto`, and `media` hints to make cross-OS storage paths easier to read
 - disk inventory is moving toward an `lsblk`-like model with `parent`, `filesystem`, `uuid`, `label`, `model`, `serial`, `refs`, `mounts`, and `children`
 - `disk+` now also surfaces stack and stable-ref cues for the hottest path so UUID/ref/parentage stay visible in the TUI

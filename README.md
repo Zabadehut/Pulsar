@@ -82,7 +82,7 @@ What is not finished yet:
 
 Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
 Built-in recording rotation, retention, and closed-segment `zip` compression are now in the CLI. The standalone archive command is still planned and documented in [`docs/help.md`](docs/help.md).
-The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `l` for the live logs pane, `L` to add watched paths, `1` to `6` for operator presets, `7` to `0` for expert local diagnostics, `g` for `inventory+`, `v` for detail density, and `i` to switch `fr`/`en`. The Linux panel toggle now lives on `k` so `l` stays dedicated to logs. The index follows the active language and specialist view context. In practice, `io` is the broad storage preset, `disk+` is the contention/performance drill-down, and `inventory+` is the local topology / stack / refs view.
+The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `l` for the live logs pane, `L` to add watched paths, `e` for an error-focused logs view, `1` to `6` for operator presets, `7` to `0` for expert local diagnostics, `g` for `inventory+`, `v` for detail density, and `i` to switch `fr`/`en`. The Linux panel toggle now lives on `k` so `l` stays dedicated to logs. The index follows the active language and specialist view context. In practice, `io` is the broad storage preset, `disk+` is the contention/performance drill-down, and `inventory+` is the local topology / stack / refs view. The logs pane now follows active files incrementally with offset tracking and rotation/truncation detection.
 
 ## Screens
 
