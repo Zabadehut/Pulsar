@@ -1,10 +1,10 @@
 # Cross-Platform Validation
 
-This document defines how Pulsar should be validated across Linux, macOS, and Windows.
+This document defines how Sysray should be validated across Linux, macOS, and Windows.
 
 ## Current Reality
 
-Pulsar can be validated locally on Linux from this repository today.
+Sysray can be validated locally on Linux from this repository today.
 
 macOS and Windows validation should be considered incomplete unless one of these is true:
 
@@ -87,7 +87,7 @@ Important:
 
 ## What Counts as "Supported"
 
-Pulsar should only claim support for an OS level when:
+Sysray should only claim support for an OS level when:
 
 - CI passes on that OS
 - core commands build successfully
@@ -98,7 +98,7 @@ Architecture-only support does not count as full support.
 
 ## Linux Distribution Scope
 
-Pulsar targets the Linux OS surface, not an explicit guarantee for every distribution flavor.
+Sysray targets the Linux OS surface, not an explicit guarantee for every distribution flavor.
 
 That means support depends on layers:
 

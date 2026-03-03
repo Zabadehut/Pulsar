@@ -1,17 +1,17 @@
 [package]
-name        = "pulsar"
+name        = "sysray"
 version     = "0.4.0"
 edition     = "2021"
 authors     = ["Kevin Vanden-Brande <zaba88@hotmail.fr>"]
 license     = "Apache-2.0"
 description = "Modern cross-platform system observability engine"
-repository  = "https://github.com/Zabadehut/Pulsar"
+repository  = "https://github.com/Zabadehut/Sysray"
 keywords    = ["monitoring", "observability", "system", "nmon", "prometheus"]
 categories  = ["command-line-utilities", "os"]
 readme      = "README.md"
 
 [[bin]]
-name = "pulsar"
+name = "sysray"
 path = "src/main.rs"
 
 [dependencies]

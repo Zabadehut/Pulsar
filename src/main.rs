@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     let config_path = cli
         .config
         .clone()
-        .unwrap_or_else(|| PathBuf::from("pulsar.toml"));
+        .unwrap_or_else(|| PathBuf::from("sysray.toml"));
     let config = Config::load_or_default(&config_path);
 
     let log_level = cli
@@ -152,7 +152,7 @@ fn build_pipeline(config: &Config) -> PipelineRunner {
 // ─── Mode TUI ────────────────────────────────────────────────────────────────
 
 async fn run_tui(config: Config, config_path: PathBuf) -> Result<()> {
-    info!("Starting Pulsar TUI");
+    info!("Starting Sysray TUI");
     let (scheduler, rx) = Scheduler::new(build_registry(&config), build_pipeline(&config));
     let token = CancellationToken::new();
 
@@ -194,7 +194,7 @@ async fn run_snapshot(config: &Config, format: &str) -> Result<()> {
 // ─── Mode Server ─────────────────────────────────────────────────────────────
 
 async fn run_server(config: Config, port: u16) -> Result<()> {
-    info!("Starting Pulsar server on :{}", port);
+    info!("Starting Sysray server on :{}", port);
     let (scheduler, _rx) = Scheduler::new(build_registry(&config), build_pipeline(&config));
     let latest = scheduler.latest();
     let health = scheduler.health();

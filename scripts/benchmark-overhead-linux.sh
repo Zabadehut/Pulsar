@@ -8,26 +8,26 @@ DURATION_SECS=30
 INTERVAL_SECS=5
 SNAPSHOT_COUNT=25
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/.benchmarks}"
-PULSAR_BIN="${PULSAR_BIN:-}"
-PULSAR_CONFIG="${PULSAR_CONFIG:-$HOME/.config/pulsar/pulsar.toml}"
+SYSRAY_BIN="${SYSRAY_BIN:-}"
+SYSRAY_CONFIG="${SYSRAY_CONFIG:-$HOME/.config/sysray/sysray.toml}"
 
 usage() {
   cat <<'EOF'
 Usage: ./scripts/benchmark-overhead-linux.sh [--duration N] [--interval N] [--snapshot-count N] [--output-dir DIR]
 
-Benchmarks local monitoring overhead for Pulsar vs classic Linux tools when available.
-It measures both the long-running Pulsar recorder path and repeated one-shot snapshot cost.
+Benchmarks local monitoring overhead for Sysray vs classic Linux tools when available.
+It measures both the long-running Sysray recorder path and repeated one-shot snapshot cost.
 
 Options:
   --duration N        Benchmark duration per long-running tool in seconds (default: 30)
   --interval N        Sampling interval in seconds (default: 5)
-  --snapshot-count N  Number of one-shot snapshot runs for Pulsar (default: 25)
+  --snapshot-count N  Number of one-shot snapshot runs for Sysray (default: 25)
   --output-dir DIR    Root directory for benchmark artifacts (default: ./.benchmarks)
   -h, --help          Show this help message
 
 Environment:
-  PULSAR_BIN      Override Pulsar binary path
-  PULSAR_CONFIG   Override Pulsar config path
+  SYSRAY_BIN      Override Sysray binary path
+  SYSRAY_CONFIG   Override Sysray config path
 EOF
 }
 
@@ -95,31 +95,31 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 find_pulsar_bin() {
-  if [[ -n "$PULSAR_BIN" && -x "$PULSAR_BIN" ]]; then
-    printf '%s\n' "$PULSAR_BIN"
+  if [[ -n "$SYSRAY_BIN" && -x "$SYSRAY_BIN" ]]; then
+    printf '%s\n' "$SYSRAY_BIN"
     return
   fi
 
-  if [[ -x "$ROOT_DIR/target/debug/pulsar" ]]; then
-    printf '%s\n' "$ROOT_DIR/target/debug/pulsar"
+  if [[ -x "$ROOT_DIR/target/debug/sysray" ]]; then
+    printf '%s\n' "$ROOT_DIR/target/debug/sysray"
     return
   fi
 
-  if [[ -x "$HOME/.local/bin/pulsar" ]]; then
-    printf '%s\n' "$HOME/.local/bin/pulsar"
+  if [[ -x "$HOME/.local/bin/sysray" ]]; then
+    printf '%s\n' "$HOME/.local/bin/sysray"
     return
   fi
 
   cargo build >/dev/null
-  printf '%s\n' "$ROOT_DIR/target/debug/pulsar"
+  printf '%s\n' "$ROOT_DIR/target/debug/sysray"
 }
 
-PULSAR_BIN="$(find_pulsar_bin)"
+SYSRAY_BIN="$(find_pulsar_bin)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_DIR="$OUTPUT_ROOT/$RUN_ID"
 SAMPLES_DIR="$RUN_DIR/samples"
-PULSAR_RECORD_DIR="$RUN_DIR/pulsar-record"
-mkdir -p "$SAMPLES_DIR" "$PULSAR_RECORD_DIR"
+SYSRAY_RECORD_DIR="$RUN_DIR/sysray-record"
+mkdir -p "$SAMPLES_DIR" "$SYSRAY_RECORD_DIR"
 
 SUMMARY_CSV="$RUN_DIR/summary.csv"
 SUMMARY_MD="$RUN_DIR/summary.md"
@@ -370,19 +370,19 @@ measure_loop_command() {
 }
 
 measure_pulsar_record() {
-  local output_path="$PULSAR_RECORD_DIR"
+  local output_path="$SYSRAY_RECORD_DIR"
   local command
 
-  command="\"$PULSAR_BIN\" --config \"$PULSAR_CONFIG\" record --interval ${INTERVAL_SECS}s --output \"$output_path\""
-  measure_command "pulsar" "interrupt_after_duration" "$command" "$output_path"
+  command="\"$SYSRAY_BIN\" --config \"$SYSRAY_CONFIG\" record --interval ${INTERVAL_SECS}s --output \"$output_path\""
+  measure_command "sysray" "interrupt_after_duration" "$command" "$output_path"
 }
 
 measure_pulsar_snapshot_json() {
-  local output_path="$RUN_DIR/pulsar-snapshot-json.ndjson"
+  local output_path="$RUN_DIR/sysray-snapshot-json.ndjson"
   local command
 
-  command="\"$PULSAR_BIN\" --config \"$PULSAR_CONFIG\" snapshot --format json >> \"$output_path\""
-  measure_loop_command "pulsar" "snapshot_json" "$SNAPSHOT_COUNT" "$command" "$output_path"
+  command="\"$SYSRAY_BIN\" --config \"$SYSRAY_CONFIG\" snapshot --format json >> \"$output_path\""
+  measure_loop_command "sysray" "snapshot_json" "$SNAPSHOT_COUNT" "$command" "$output_path"
 }
 
 measure_nmon() {

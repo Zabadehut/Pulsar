@@ -1958,8 +1958,8 @@ fn disk_inventory_summary_lines(
         )),
         Line::from(text(
             locale,
-            "utile pour lire partition, mapper, raid, volume et filesystem sans quitter Pulsar",
-            "useful to read partition, mapper, raid, volume and filesystem layers without leaving Pulsar",
+            "utile pour lire partition, mapper, raid, volume et filesystem sans quitter Sysray",
+            "useful to read partition, mapper, raid, volume and filesystem layers without leaving Sysray",
         )),
     ]
 }

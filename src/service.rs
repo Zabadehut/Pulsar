@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const CONFIG_TEMPLATE: &str = include_str!("../config/pulsar.toml.example");
+const CONFIG_TEMPLATE: &str = include_str!("../config/sysray.toml.example");
 
 #[cfg(target_os = "linux")]
 pub async fn run_service(action: ServiceAction) -> Result<()> {
@@ -100,14 +100,14 @@ fn run_command(program: &str, args: &[&str]) -> Result<()> {
 mod linux {
     use super::*;
 
-    const TEMPLATE: &str = include_str!("../deploy/systemd/pulsar.service");
+    const TEMPLATE: &str = include_str!("../deploy/systemd/sysray.service");
 
     pub fn run(action: ServiceAction) -> Result<()> {
-        let config_dir = home_dir()?.join(".config/pulsar");
-        let data_dir = home_dir()?.join(".local/share/pulsar");
-        let config_path = config_dir.join("pulsar.toml");
-        let runner_path = data_dir.join("pulsar-service.sh");
-        let unit_path = home_dir()?.join(".config/systemd/user/pulsar.service");
+        let config_dir = home_dir()?.join(".config/sysray");
+        let data_dir = home_dir()?.join(".local/share/sysray");
+        let config_path = config_dir.join("sysray.toml");
+        let runner_path = data_dir.join("sysray-service.sh");
+        let unit_path = home_dir()?.join(".config/systemd/user/sysray.service");
 
         match action {
             ServiceAction::Install => {
@@ -117,12 +117,12 @@ mod linux {
                 let exe = current_exe_string()?;
                 write_runner_script(&runner_path, &exe, &config_path, &data_dir)?;
 
-                let content = TEMPLATE.replace("__PULSAR_RUNNER__", &runner_path.to_string_lossy());
+                let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
                 write_template(&unit_path, &content)?;
                 run_command("systemctl", &["--user", "daemon-reload"])?;
                 run_command(
                     "systemctl",
-                    &["--user", "enable", "--now", "pulsar.service"],
+                    &["--user", "enable", "--now", "sysray.service"],
                 )?;
                 println!(
                     "Installed user service at {} using config {} and output {}",
@@ -134,7 +134,7 @@ mod linux {
             ServiceAction::Uninstall => {
                 let _ = run_command(
                     "systemctl",
-                    &["--user", "disable", "--now", "pulsar.service"],
+                    &["--user", "disable", "--now", "sysray.service"],
                 );
                 if unit_path.exists() {
                     fs::remove_file(&unit_path)?;
@@ -146,7 +146,7 @@ mod linux {
                 println!("Removed user service from {}", unit_path.display());
             }
             ServiceAction::Status => {
-                run_command("systemctl", &["--user", "status", "pulsar.service"])?;
+                run_command("systemctl", &["--user", "status", "sysray.service"])?;
             }
         }
         Ok(())
@@ -157,15 +157,15 @@ mod linux {
 mod macos {
     use super::*;
 
-    const TEMPLATE: &str = include_str!("../deploy/launchd/com.zabadehut.pulsar.plist");
+    const TEMPLATE: &str = include_str!("../deploy/launchd/com.zabadehut.sysray.plist");
 
     pub fn run(action: ServiceAction) -> Result<()> {
-        let app_dir = home_dir()?.join("Library/Application Support/Pulsar");
-        let config_path = app_dir.join("pulsar.toml");
+        let app_dir = home_dir()?.join("Library/Application Support/Sysray");
+        let config_path = app_dir.join("sysray.toml");
         let output_dir = app_dir.join("data");
-        let runner_path = app_dir.join("pulsar-service.sh");
-        let plist_path = home_dir()?.join("Library/LaunchAgents/com.zabadehut.pulsar.plist");
-        let label = "com.zabadehut.pulsar";
+        let runner_path = app_dir.join("sysray-service.sh");
+        let plist_path = home_dir()?.join("Library/LaunchAgents/com.zabadehut.sysray.plist");
+        let label = "com.zabadehut.sysray";
         match action {
             ServiceAction::Install => {
                 ensure_dir(&app_dir)?;
@@ -174,7 +174,7 @@ mod macos {
                 let exe = current_exe_string()?;
                 write_runner_script(&runner_path, &exe, &config_path, &output_dir)?;
 
-                let content = TEMPLATE.replace("__PULSAR_RUNNER__", &runner_path.to_string_lossy());
+                let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
                 write_template(&plist_path, &content)?;
                 run_command(
                     "launchctl",
@@ -217,18 +217,18 @@ mod macos {
 mod windows {
     use super::*;
 
-    const TEMPLATE: &str = include_str!("../deploy/windows/pulsar-task.xml");
+    const TEMPLATE: &str = include_str!("../deploy/windows/sysray-task.xml");
 
     pub fn run(action: ServiceAction) -> Result<()> {
         let app_dir = std::env::var_os("APPDATA")
             .map(PathBuf::from)
             .unwrap_or(std::env::temp_dir())
-            .join("Pulsar");
-        let config_path = app_dir.join("pulsar.toml");
+            .join("Sysray");
+        let config_path = app_dir.join("sysray.toml");
         let output_dir = app_dir.join("data");
-        let runner_path = app_dir.join("pulsar-service.cmd");
-        let xml_path = app_dir.join("pulsar-task.xml");
-        let task_name = "Pulsar";
+        let runner_path = app_dir.join("sysray-service.cmd");
+        let xml_path = app_dir.join("sysray-task.xml");
+        let task_name = "Sysray";
         match action {
             ServiceAction::Install => {
                 ensure_dir(&app_dir)?;
@@ -237,7 +237,7 @@ mod windows {
                 let exe = current_exe_string()?;
                 write_runner_script(&runner_path, &exe, &config_path, &output_dir)?;
 
-                let content = TEMPLATE.replace("__PULSAR_RUNNER__", &runner_path.to_string_lossy());
+                let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
                 write_template(&xml_path, &content)?;
                 run_command(
                     "schtasks",

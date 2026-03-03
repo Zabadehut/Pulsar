@@ -1,10 +1,10 @@
 [Unit]
-Description=Pulsar observability agent
+Description=Sysray observability agent
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=__PULSAR_RUNNER__
+ExecStart=__SYSRAY_RUNNER__
 Restart=always
 RestartSec=5
 

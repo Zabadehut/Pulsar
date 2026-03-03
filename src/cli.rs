@@ -5,22 +5,22 @@ const AFTER_HELP: &str = "\
 Scheduling examples:
 
 Linux cron tasks:
-  */5 * * * * /home/<user>/dev/pulsar/scripts/pulsar-daily-snapshot.sh
-  0 2 */15 * * /home/<user>/dev/pulsar/scripts/pulsar-prune-raw.sh
-  30 2 * * * /home/<user>/dev/pulsar/scripts/pulsar-archive-raw.sh
+  */5 * * * * /home/<user>/dev/sysray/scripts/sysray-daily-snapshot.sh
+  0 2 */15 * * /home/<user>/dev/sysray/scripts/sysray-prune-raw.sh
+  30 2 * * * /home/<user>/dev/sysray/scripts/sysray-archive-raw.sh
 
 Linux task intent:
-  1) append snapshots into ~/.local/share/pulsar/daily/YYYY-MM-DD.jsonl
+  1) append snapshots into ~/.local/share/sysray/daily/YYYY-MM-DD.jsonl
   2) rotate raw files by hour/day/size when needed
   3) keep raw retention bounded with --keep
 
 macOS launchd:
-  pulsar service install
-  launchctl list | grep com.zabadehut.pulsar
+  sysray service install
+  launchctl list | grep com.zabadehut.sysray
 
 Windows Task Scheduler:
-  pulsar.exe service install
-  schtasks /Query /TN Pulsar /V /FO LIST
+  sysray.exe service install
+  schtasks /Query /TN Sysray /V /FO LIST
 
 Built-in service integration:
   Linux: systemd --user
@@ -28,24 +28,24 @@ Built-in service integration:
   Windows: Task Scheduler
 
 Reference and explain:
-  pulsar explain latency
-  pulsar explain swap --lang en --audience beginner
+  sysray explain latency
+  sysray explain swap --lang en --audience beginner
 ";
 
-/// Pulsar — System Observability Engine
+/// Sysray — System Observability Engine
 /// Your system. Always beating.
 #[derive(Parser, Debug)]
 #[command(
-    name = "pulsar",
+    name = "sysray",
     version,
     author = "Kevin Vanden-Brande <zaba88@hotmail.fr>",
     about = "Local-first system observability engine for Linux, macOS, and Windows",
     after_help = AFTER_HELP,
-    long_about = "Pulsar is a local-first system observability engine.\n\nAvailable today:\n- interactive TUI with operator presets, detailed views, and a localized reference index\n- one-shot snapshots in json/csv/prometheus\n- local recording to .jsonl with built-in rotation, retention, and optional zip compression for closed segments\n- top/watch process inspection\n- OS service scaffolding\n\nStill planned:\n- a standalone archive command surface\n\nSee docs/help.md for the operator cheat sheet and recording workflow."
+    long_about = "Sysray is a local-first system observability engine.\n\nAvailable today:\n- interactive TUI with operator presets, detailed views, and a localized reference index\n- one-shot snapshots in json/csv/prometheus\n- local recording to .jsonl with built-in rotation, retention, and optional zip compression for closed segments\n- top/watch process inspection\n- OS service scaffolding\n\nStill planned:\n- a standalone archive command surface\n\nSee docs/help.md for the operator cheat sheet and recording workflow."
 )]
 pub struct Cli {
-    /// Path to the Pulsar configuration file
-    #[arg(short, long, env = "PULSAR_CONFIG", value_name = "FILE")]
+    /// Path to the Sysray configuration file
+    #[arg(short, long, env = "SYSRAY_CONFIG", value_name = "FILE")]
     pub config: Option<PathBuf>,
 
     /// Override log level: error, warn, info, debug, or trace

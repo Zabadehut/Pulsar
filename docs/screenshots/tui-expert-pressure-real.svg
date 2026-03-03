@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="790" viewBox="0 0 1160 790" role="img" aria-label="Pulsar expert pressure view">
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="790" viewBox="0 0 1160 790" role="img" aria-label="Sysray expert pressure view">
 <defs>
 <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
 <stop offset="0%" stop-color="#0f172a"/>
@@ -46,5 +46,5 @@
 <text x="20" y="674" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> q:quitter   r:refresh   t:theme(dark)   i:lang(fr)   v:detail(detail)   /:search   ?:index   esc:vider</text>
 <text x="20" y="692" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> 7:pression+   8:reseau+   9:jvm+   0:disque+   g:inventaire+   -:retour normal  expert:pression+</text>
 <text x="20" y="710" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve"> 1:vue   2:io   3:reseau   4:processus   5:pression   6:complet</text>
-<text x="20" y="728" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">s:sys off  c:cpu  m:mem  l:linux  d:disk  n:net off  a:alertes  p:proc off  visibles:5/8  alertes:0 w:0 c:0  reference:tout  Pulsar v0.4.0</text>
+<text x="20" y="728" fill="#e5e7eb" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" xml:space="preserve">s:sys off  c:cpu  m:mem  l:linux  d:disk  n:net off  a:alertes  p:proc off  visibles:5/8  alertes:0 w:0 c:0  reference:tout  Sysray v0.4.0</text>
 </svg>

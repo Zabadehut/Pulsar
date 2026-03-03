@@ -951,7 +951,7 @@ impl Dashboard {
                 },
             ),
             if width >= 140 {
-                Span::raw(format!("  Pulsar v{}", env!("CARGO_PKG_VERSION")))
+                Span::raw(format!("  Sysray v{}", env!("CARGO_PKG_VERSION")))
             } else {
                 Span::raw("")
             },

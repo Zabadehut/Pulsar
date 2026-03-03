@@ -1,6 +1,6 @@
-# Pulsar Community Cheatsheet
+# Sysray Community Cheatsheet
 
-This sheet is the fast reference for Pulsar Core / Community usage.
+This sheet is the fast reference for Sysray Core / Community usage.
 
 ## Positioning
 
@@ -31,26 +31,26 @@ This sheet is the fast reference for Pulsar Core / Community usage.
 
 ## Daily Commands
 
-These commands exist in the current CLI. Use `pulsar --help` for the live command list.
+These commands exist in the current CLI. Use `sysray --help` for the live command list.
 
 ```bash
 # TUI
-pulsar
+sysray
 
 # one-shot snapshot
-pulsar snapshot --format json
-pulsar snapshot --format prometheus
+sysray snapshot --format json
+sysray snapshot --format prometheus
 
 # continuous local recording
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
+sysray record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
 
 # top processes
-pulsar top --sort cpu --limit 20
+sysray top --sort cpu --limit 20
 
 # service integration
-pulsar service install
-pulsar service status
-pulsar service uninstall
+sysray service install
+sysray service status
+sysray service uninstall
 ```
 
 ## Recommended Community Workflows
@@ -58,22 +58,22 @@ pulsar service uninstall
 ### Local investigation
 
 ```bash
-pulsar snapshot --format json
-pulsar top --sort cpu --limit 20
+sysray snapshot --format json
+sysray top --sort cpu --limit 20
 ```
 
 ### Lightweight capture session
 
 ```bash
 mkdir -p ./captures
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
+sysray record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
 ```
 
 ### Linux user service
 
 ```bash
 ./scripts/install-linux-user.sh
-systemctl --user status pulsar.service
+systemctl --user status sysray.service
 ```
 
 ## Community Packaging Rules
@@ -106,7 +106,7 @@ Raw rotation, raw retention, and closed-segment zip compression are implemented 
 ### Proposed CLI shape
 
 ```bash
-pulsar record \
+sysray record \
   --interval 5s \
   --output ./captures \
   --rotate hourly \
@@ -127,7 +127,7 @@ pulsar record \
 This is the portable command shape to aim for if compression is added without shelling out to OS tools. It is not part of the current CLI help.
 
 ```bash
-pulsar archive zip \
+sysray archive zip \
   --input ./captures/pulsar_20260303_140000.jsonl \
   --output ./captures/pulsar_20260303_140000.jsonl.zip
 ```

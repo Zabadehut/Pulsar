@@ -78,12 +78,12 @@ echo "==> Install fresh release bundle"
 "$ROOT_DIR/scripts/install-linux-user.sh" --force-build
 
 echo "==> Restart user service"
-systemctl --user restart pulsar.service
+systemctl --user restart sysray.service
 
 echo "==> User service status"
-systemctl --user status pulsar.service --no-pager
+systemctl --user status sysray.service --no-pager
 
 if [[ "$SHOW_JOURNAL" -eq 1 ]]; then
   echo "==> Recent logs"
-  journalctl --user -u pulsar.service -n "$JOURNAL_LINES" --no-pager
+  journalctl --user -u sysray.service -n "$JOURNAL_LINES" --no-pager
 fi

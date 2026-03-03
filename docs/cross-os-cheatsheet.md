@@ -1,4 +1,4 @@
-# Pulsar Cross-OS Cheatsheet
+# Sysray Cross-OS Cheatsheet
 
 This sheet is the quick operational reference for Linux, macOS, and Windows.
 
@@ -46,30 +46,30 @@ These commands reflect the current CLI. Raw file rotation, retention, and closed
 ### Linux
 
 ```bash
-pulsar
-pulsar snapshot --format json
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
-pulsar service install
+sysray
+sysray snapshot --format json
+sysray record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
+sysray service install
 ```
 
 ### macOS
 
 ```bash
-pulsar
-pulsar snapshot --format json
-pulsar record --interval 5s --output ./captures --rotate daily --keep-files 14 --compress zip
-pulsar service install
-launchctl list com.zabadehut.pulsar
+sysray
+sysray snapshot --format json
+sysray record --interval 5s --output ./captures --rotate daily --keep-files 14 --compress zip
+sysray service install
+launchctl list com.zabadehut.sysray
 ```
 
 ### Windows
 
 ```powershell
-pulsar.exe
-pulsar.exe snapshot --format json
-pulsar.exe record --interval 5s --output .\captures --rotate daily --keep-files 14 --compress zip
-pulsar.exe service install
-schtasks /Query /TN Pulsar /V /FO LIST
+sysray.exe
+sysray.exe snapshot --format json
+sysray.exe record --interval 5s --output .\captures --rotate daily --keep-files 14 --compress zip
+sysray.exe service install
+schtasks /Query /TN Sysray /V /FO LIST
 ```
 
 ## Service Model By OS
@@ -108,7 +108,7 @@ Only the standalone archive command is still a roadmap target. Recording rotatio
 ### Cross-OS recording
 
 ```bash
-pulsar record \
+sysray record \
   --interval 5s \
   --output ./captures \
   --rotate daily \
@@ -120,7 +120,7 @@ pulsar record \
 ### Cross-OS archive compression
 
 ```bash
-pulsar archive zip \
+sysray archive zip \
   --input ./captures/pulsar_20260303_140000.jsonl \
   --output ./captures/pulsar_20260303_140000.jsonl.zip
 ```

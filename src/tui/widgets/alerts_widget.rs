@@ -53,7 +53,7 @@ pub fn render(
     let mut lines = Vec::new();
     if !alerts.is_empty() {
         lines.push(Line::from(vec![Span::styled(
-            text(locale, "Signaux Pulsar", "Pulsar signals"),
+            text(locale, "Signaux Sysray", "Sysray signals"),
             theme.highlight_style(),
         )]));
     }

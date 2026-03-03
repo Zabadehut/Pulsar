@@ -305,7 +305,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let output = std::env::temp_dir().join(format!("pulsar-recorder-test-{suffix}"));
+        let output = std::env::temp_dir().join(format!("sysray-recorder-test-{suffix}"));
         fs::create_dir_all(&output).unwrap();
 
         let options = RecordRuntimeOptions {
@@ -336,7 +336,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let output = std::env::temp_dir().join(format!("pulsar-recorder-zip-test-{suffix}"));
+        let output = std::env::temp_dir().join(format!("sysray-recorder-zip-test-{suffix}"));
         fs::create_dir_all(&output).unwrap();
 
         let raw = output.join("pulsar_20260303_120000_000.jsonl");

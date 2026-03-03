@@ -1,10 +1,10 @@
-# Pulsar Optimization Review
+# Sysray Optimization Review
 
 This document tracks where optimization effort is justified, where it is premature, and which assumptions should be challenged.
 
 ## Objective
 
-Pulsar should be fast because it is designed carefully and measured honestly.
+Sysray should be fast because it is designed carefully and measured honestly.
 
 That means:
 

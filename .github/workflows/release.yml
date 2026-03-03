@@ -1,4 +1,4 @@
-name: Pulsar Release
+name: Sysray Release
 
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pulsar-release-${{ matrix.os }}
+          name: sysray-release-${{ matrix.os }}
           path: dist/
           if-no-files-found: error
 
@@ -56,8 +56,8 @@ jobs:
     needs: build
     environment: release
     env:
-      PULSAR_GPG_PRIVATE_KEY: ${{ secrets.PULSAR_GPG_PRIVATE_KEY }}
-      PULSAR_GPG_KEY_ID: ${{ secrets.PULSAR_GPG_KEY_ID }}
+      SYSRAY_GPG_PRIVATE_KEY: ${{ secrets.SYSRAY_GPG_PRIVATE_KEY }}
+      SYSRAY_GPG_KEY_ID: ${{ secrets.SYSRAY_GPG_KEY_ID }}
     permissions:
       contents: write
 
@@ -66,11 +66,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
-          pattern: pulsar-release-*
+          pattern: sysray-release-*
           merge-multiple: true
 
       - name: Import optional GPG signing key
-        if: ${{ env.PULSAR_GPG_PRIVATE_KEY != '' && env.PULSAR_GPG_KEY_ID != '' }}
+        if: ${{ env.SYSRAY_GPG_PRIVATE_KEY != '' && env.SYSRAY_GPG_KEY_ID != '' }}
         shell: bash
         run: |
           if ! command -v gpg >/dev/null 2>&1; then
@@ -78,18 +78,18 @@ jobs:
             exit 0
           fi
 
-          temp_key="${RUNNER_TEMP}/pulsar-release.key"
+          temp_key="${RUNNER_TEMP}/sysray-release.key"
           if base64 --help 2>/dev/null | grep -q -- '--decode'; then
-            printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
+            printf '%s' "$SYSRAY_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
           else
-            printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
+            printf '%s' "$SYSRAY_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
           fi
 
           gpg --batch --import "$temp_key"
-          echo "PULSAR_GPG_KEY_ID=$PULSAR_GPG_KEY_ID" >> "$GITHUB_ENV"
+          echo "SYSRAY_GPG_KEY_ID=$SYSRAY_GPG_KEY_ID" >> "$GITHUB_ENV"
 
       - name: Sign checksum files when key is available
-        if: ${{ env.PULSAR_GPG_KEY_ID != '' }}
+        if: ${{ env.SYSRAY_GPG_KEY_ID != '' }}
         shell: bash
         run: |
           if ! command -v gpg >/dev/null 2>&1; then
@@ -106,7 +106,7 @@ jobs:
 
           for checksum_file in "${checksum_files[@]}"; do
             gpg --batch --yes --armor --detach-sign \
-              --local-user "$PULSAR_GPG_KEY_ID" \
+              --local-user "$SYSRAY_GPG_KEY_ID" \
               --output "${checksum_file}.asc" \
               "$checksum_file"
           done

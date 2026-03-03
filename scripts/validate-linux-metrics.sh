@@ -5,22 +5,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/.validation}"
-PULSAR_BIN="${PULSAR_BIN:-}"
-PULSAR_CONFIG="${PULSAR_CONFIG:-$HOME/.config/pulsar/pulsar.toml}"
+SYSRAY_BIN="${SYSRAY_BIN:-}"
+SYSRAY_CONFIG="${SYSRAY_CONFIG:-$HOME/.config/sysray/sysray.toml}"
 
 usage() {
   cat <<'EOF'
 Usage: ./scripts/validate-linux-metrics.sh [--output-dir DIR]
 
-Captures one Pulsar snapshot and compares key Linux metrics against /proc and basic system commands.
+Captures one Sysray snapshot and compares key Linux metrics against /proc and basic system commands.
 
 Options:
   --output-dir DIR  Root directory for validation artifacts (default: ./.validation)
   -h, --help        Show this help message
 
 Environment:
-  PULSAR_BIN        Override Pulsar binary path
-  PULSAR_CONFIG     Override Pulsar config path
+  SYSRAY_BIN        Override Sysray binary path
+  SYSRAY_CONFIG     Override Sysray config path
 EOF
 }
 
@@ -62,36 +62,36 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 find_pulsar_bin() {
-  if [[ -n "$PULSAR_BIN" && -x "$PULSAR_BIN" ]]; then
-    printf '%s\n' "$PULSAR_BIN"
+  if [[ -n "$SYSRAY_BIN" && -x "$SYSRAY_BIN" ]]; then
+    printf '%s\n' "$SYSRAY_BIN"
     return
   fi
 
-  if [[ -x "$ROOT_DIR/target/debug/pulsar" ]]; then
-    printf '%s\n' "$ROOT_DIR/target/debug/pulsar"
+  if [[ -x "$ROOT_DIR/target/debug/sysray" ]]; then
+    printf '%s\n' "$ROOT_DIR/target/debug/sysray"
     return
   fi
 
-  if [[ -x "$HOME/.local/bin/pulsar" ]]; then
-    printf '%s\n' "$HOME/.local/bin/pulsar"
+  if [[ -x "$HOME/.local/bin/sysray" ]]; then
+    printf '%s\n' "$HOME/.local/bin/sysray"
     return
   fi
 
   cargo build >/dev/null
-  printf '%s\n' "$ROOT_DIR/target/debug/pulsar"
+  printf '%s\n' "$ROOT_DIR/target/debug/sysray"
 }
 
-PULSAR_BIN="$(find_pulsar_bin)"
+SYSRAY_BIN="$(find_pulsar_bin)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_DIR="$OUTPUT_ROOT/$RUN_ID"
 RAW_DIR="$RUN_DIR/raw"
 mkdir -p "$RAW_DIR"
 
-SNAPSHOT_JSON="$RUN_DIR/pulsar-snapshot.json"
+SNAPSHOT_JSON="$RUN_DIR/sysray-snapshot.json"
 REPORT_MD="$RUN_DIR/report.md"
 RESULTS_CSV="$RUN_DIR/results.csv"
 
-"$PULSAR_BIN" --config "$PULSAR_CONFIG" snapshot --format json > "$SNAPSHOT_JSON"
+"$SYSRAY_BIN" --config "$SYSRAY_CONFIG" snapshot --format json > "$SNAPSHOT_JSON"
 cp /proc/loadavg "$RAW_DIR/proc-loadavg.txt"
 cp /proc/uptime "$RAW_DIR/proc-uptime.txt"
 cp /proc/meminfo "$RAW_DIR/proc-meminfo.txt"
@@ -279,7 +279,7 @@ FAIL_COUNT="$(awk -F, 'NR > 1 && $2 == "FAIL" { count++ } END { print count + 0 
   echo
   echo "- Run ID: \`$RUN_ID\`"
   echo "- Host: \`$(cat "$RAW_DIR/hostname.txt")\`"
-  echo "- Pulsar binary: \`$PULSAR_BIN\`"
+  echo "- Sysray binary: \`$SYSRAY_BIN\`"
   echo "- Snapshot file: \`$SNAPSHOT_JSON\`"
   echo "- Pass checks: \`$PASS_COUNT\`"
   echo "- Failed checks: \`$FAIL_COUNT\`"

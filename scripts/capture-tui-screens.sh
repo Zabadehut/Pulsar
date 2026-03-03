@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/docs/screenshots}"
-TMP_DIR="${TMPDIR:-/tmp}/pulsar-capture"
+TMP_DIR="${TMPDIR:-/tmp}/sysray-capture"
 
 mkdir -p "$OUT_DIR" "$TMP_DIR"
 
@@ -28,23 +28,23 @@ render_frame() {
     --title "$title"
 }
 
-capture_frame "tui-overview-real" -- target/debug/pulsar --log-level error
-render_frame "tui-overview-real" "Pulsar TUI overview"
+capture_frame "tui-overview-real" -- target/debug/sysray --log-level error
+render_frame "tui-overview-real" "Sysray TUI overview"
 
-capture_frame "tui-expert-network-real" --keys "8" --keys "q" -- target/debug/pulsar --log-level error
-render_frame "tui-expert-network-real" "Pulsar expert network view"
+capture_frame "tui-expert-network-real" --keys "8" --keys "q" -- target/debug/sysray --log-level error
+render_frame "tui-expert-network-real" "Sysray expert network view"
 
-capture_frame "tui-expert-pressure-real" --keys "7" --keys "q" -- target/debug/pulsar --log-level error
-render_frame "tui-expert-pressure-real" "Pulsar expert pressure view"
+capture_frame "tui-expert-pressure-real" --keys "7" --keys "q" -- target/debug/sysray --log-level error
+render_frame "tui-expert-pressure-real" "Sysray expert pressure view"
 
-capture_frame "tui-expert-jvm-real" --keys "9" --keys "q" -- target/debug/pulsar --log-level error
-render_frame "tui-expert-jvm-real" "Pulsar expert JVM view"
+capture_frame "tui-expert-jvm-real" --keys "9" --keys "q" -- target/debug/sysray --log-level error
+render_frame "tui-expert-jvm-real" "Sysray expert JVM view"
 
-capture_frame "tui-expert-disk-real" --keys "0" --keys "q" -- target/debug/pulsar --log-level error
-render_frame "tui-expert-disk-real" "Pulsar expert disk view"
+capture_frame "tui-expert-disk-real" --keys "0" --keys "q" -- target/debug/sysray --log-level error
+render_frame "tui-expert-disk-real" "Sysray expert disk view"
 
-capture_frame "tui-expert-inventory-real" --keys "g" --keys "q" -- target/debug/pulsar --log-level error
-render_frame "tui-expert-inventory-real" "Pulsar expert disk inventory view"
+capture_frame "tui-expert-inventory-real" --keys "g" --keys "q" -- target/debug/sysray --log-level error
+render_frame "tui-expert-inventory-real" "Sysray expert disk inventory view"
 
 echo "Generated:"
 echo "  $OUT_DIR/tui-overview-real.svg"

@@ -1,4 +1,4 @@
-name: Pulsar CI
+name: Sysray CI
 
 on:
   push:
@@ -172,8 +172,8 @@ jobs:
     name: Package - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
-      PULSAR_GPG_PRIVATE_KEY: ${{ secrets.PULSAR_GPG_PRIVATE_KEY }}
-      PULSAR_GPG_KEY_ID: ${{ secrets.PULSAR_GPG_KEY_ID }}
+      SYSRAY_GPG_PRIVATE_KEY: ${{ secrets.SYSRAY_GPG_PRIVATE_KEY }}
+      SYSRAY_GPG_KEY_ID: ${{ secrets.SYSRAY_GPG_KEY_ID }}
     strategy:
       fail-fast: false
       matrix:
@@ -192,18 +192,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Import optional GPG signing key
-        if: ${{ env.PULSAR_GPG_PRIVATE_KEY != '' && env.PULSAR_GPG_KEY_ID != '' }}
+        if: ${{ env.SYSRAY_GPG_PRIVATE_KEY != '' && env.SYSRAY_GPG_KEY_ID != '' }}
         shell: bash
         run: |
           if command -v gpg >/dev/null 2>&1; then
-            temp_key="${RUNNER_TEMP}/pulsar-release.key"
+            temp_key="${RUNNER_TEMP}/sysray-release.key"
             if base64 --help 2>/dev/null | grep -q -- '--decode'; then
-              printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
+              printf '%s' "$SYSRAY_GPG_PRIVATE_KEY" | base64 --decode > "$temp_key"
             else
-              printf '%s' "$PULSAR_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
+              printf '%s' "$SYSRAY_GPG_PRIVATE_KEY" | base64 -D > "$temp_key"
             fi
             gpg --batch --import "$temp_key"
-            echo "PULSAR_GPG_KEY_ID=$PULSAR_GPG_KEY_ID" >> "$GITHUB_ENV"
+            echo "SYSRAY_GPG_KEY_ID=$SYSRAY_GPG_KEY_ID" >> "$GITHUB_ENV"
           else
             echo "gpg not available on this runner; packaging will continue without signature"
           fi
@@ -215,6 +215,6 @@ jobs:
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pulsar-dist-${{ matrix.os }}
+          name: sysray-dist-${{ matrix.os }}
           path: dist/
           if-no-files-found: error

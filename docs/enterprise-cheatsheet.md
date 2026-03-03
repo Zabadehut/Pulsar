@@ -1,10 +1,10 @@
-# Pulsar Enterprise Cheatsheet
+# Sysray Enterprise Cheatsheet
 
-This sheet captures the intended enterprise posture for Pulsar without overstating current implementation.
+This sheet captures the intended enterprise posture for Sysray without overstating current implementation.
 
 ## Positioning
 
-- enterprise builds on top of Pulsar Core
+- enterprise builds on top of Sysray Core
 - enterprise means operational guarantees and governance first
 - enterprise is not a synonym for "more metrics"
 
@@ -92,22 +92,22 @@ retention_local_raw: active-only
 Raw rotation, raw retention, and closed-segment zip compression are already present in the CLI. Only the standalone archive command remains planned.
 
 ```bash
-pulsar record \
+sysray record \
   --interval 5s \
-  --output /var/lib/pulsar/captures \
+  --output /var/lib/sysray/captures \
   --rotate hourly \
   --max-file-size-mb 512 \
   --keep-files 168 \
   --compress zip
 
-pulsar archive zip \
-  --input /var/lib/pulsar/captures/pulsar_20260303_140000.jsonl \
-  --output /var/lib/pulsar/captures/pulsar_20260303_140000.jsonl.zip
+sysray archive zip \
+  --input /var/lib/sysray/captures/pulsar_20260303_140000.jsonl \
+  --output /var/lib/sysray/captures/pulsar_20260303_140000.jsonl.zip
 ```
 
 ## Rust-Only Compression Requirement
 
-If Pulsar adds archive compression, enterprise should require:
+If Sysray adds archive compression, enterprise should require:
 
 - Rust-native implementation
 - no dependence on OS archive utilities

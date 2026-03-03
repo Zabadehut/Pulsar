@@ -1,6 +1,6 @@
-# Pulsar Benchmarking
+# Sysray Benchmarking
 
-This document defines the current local benchmark harness for Pulsar.
+This document defines the current local benchmark harness for Sysray.
 
 ## Goal
 
@@ -8,8 +8,8 @@ Measure overhead before making performance claims.
 
 The current benchmark focus is Linux-first and answers two concrete questions:
 
-- what does the long-running `pulsar record` path cost?
-- what does repeated one-shot `pulsar snapshot --format json` cost?
+- what does the long-running `sysray record` path cost?
+- what does repeated one-shot `sysray snapshot --format json` cost?
 
 ## Harness
 
@@ -43,12 +43,12 @@ Important files:
 
 ## Current Scenarios
 
-### `pulsar / resident`
+### `sysray / resident`
 
 Runs:
 
 ```bash
-pulsar record --interval <N>s --output <dir>
+sysray record --interval <N>s --output <dir>
 ```
 
 This approximates the steady-state cost of the local recording path.
@@ -61,12 +61,12 @@ Measured from `/proc/<pid>`:
 - write bytes
 - FD count
 
-### `pulsar / snapshot_json`
+### `sysray / snapshot_json`
 
 Runs repeated one-shot snapshots:
 
 ```bash
-pulsar snapshot --format json
+sysray snapshot --format json
 ```
 
 This captures collection + serialization overhead for the one-shot path.
@@ -92,8 +92,8 @@ These are not treated as semantically identical products. They are only rough lo
 
 ## How To Read Results
 
-- Compare `pulsar / resident` against other resident tools for steady-state overhead.
-- Compare `pulsar / snapshot_json` across commits to detect regressions in one-shot collection and serialization.
+- Compare `sysray / resident` against other resident tools for steady-state overhead.
+- Compare `sysray / snapshot_json` across commits to detect regressions in one-shot collection and serialization.
 - Treat busy hosts separately from idle hosts. A single idle-machine number is not enough.
 
 ## Recommended Baseline Runs
@@ -123,8 +123,8 @@ Reference run captured on March 3, 2026 on `rocky9-workstation-master`:
 
 Key results:
 
-- `pulsar / resident`: `0.35%` average CPU, `13352 KB` RSS, `286220 KB` VSZ, `49152` write bytes
-- `pulsar / snapshot_json`: `0.83%` average CPU across `25` snapshots, `13212 KB` max RSS, `286164 KB` max VSZ
+- `sysray / resident`: `0.35%` average CPU, `13352 KB` RSS, `286220 KB` VSZ, `49152` write bytes
+- `sysray / snapshot_json`: `0.83%` average CPU across `25` snapshots, `13212 KB` max RSS, `286164 KB` max VSZ
 - `vmstat / resident`: `3444 KB` RSS on the same host for rough directional comparison
 
 Interpretation:

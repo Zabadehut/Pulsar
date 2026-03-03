@@ -1,6 +1,6 @@
-# Pulsar Metrics Checklist
+# Sysray Metrics Checklist
 
-This checklist is the practical execution view of Pulsar's metric surface.
+This checklist is the practical execution view of Sysray's metric surface.
 
 Legend:
 

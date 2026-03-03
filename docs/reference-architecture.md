@@ -1,4 +1,4 @@
-# Pulsar Reference Architecture
+# Sysray Reference Architecture
 
 This document explains how technical explanations, glossary entries, search terms, and future translations are centralized.
 

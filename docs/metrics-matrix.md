@@ -1,4 +1,4 @@
-# Pulsar Metrics Matrix
+# Sysray Metrics Matrix
 
 Legend:
 
@@ -73,7 +73,7 @@ Legend:
 
 ## Interpretation
 
-Today, Pulsar is best described as:
+Today, Sysray is best described as:
 
 - a working Linux observability foundation
 - a cross-platform runtime with baseline macOS and Windows host coverage

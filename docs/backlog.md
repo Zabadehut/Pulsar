@@ -1,4 +1,4 @@
-# Pulsar Backlog
+# Sysray Backlog
 
 This backlog translates product vision into concrete execution priorities.
 

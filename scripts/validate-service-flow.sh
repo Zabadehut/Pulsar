@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-binary="${1:-target/debug/pulsar}"
+binary="${1:-target/debug/sysray}"
 binary_dir="$(cd "$(dirname "${binary}")" && pwd)"
 binary="${binary_dir}/$(basename "${binary}")"
 platform="$(uname -s)"
@@ -18,15 +18,15 @@ trap cleanup EXIT
 
 case "${platform}" in
   Linux)
-    runner_path="${HOME}/.local/share/pulsar/pulsar-service.sh"
-    service_path="${HOME}/.config/systemd/user/pulsar.service"
-    config_path="${HOME}/.config/pulsar/pulsar.toml"
+    runner_path="${HOME}/.local/share/sysray/sysray-service.sh"
+    service_path="${HOME}/.config/systemd/user/sysray.service"
+    config_path="${HOME}/.config/sysray/sysray.toml"
     status_is_optional=1
     ;;
   Darwin)
-    runner_path="${HOME}/Library/Application Support/Pulsar/pulsar-service.sh"
-    service_path="${HOME}/Library/LaunchAgents/com.zabadehut.pulsar.plist"
-    config_path="${HOME}/Library/Application Support/Pulsar/pulsar.toml"
+    runner_path="${HOME}/Library/Application Support/Sysray/sysray-service.sh"
+    service_path="${HOME}/Library/LaunchAgents/com.zabadehut.sysray.plist"
+    config_path="${HOME}/Library/Application Support/Sysray/sysray.toml"
     status_is_optional=1
     ;;
   *)

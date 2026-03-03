@@ -1,4 +1,4 @@
-# Pulsar Product Scope
+# Sysray Product Scope
 
 This document defines what belongs to V1, V2, V3, and future enterprise scope.
 
@@ -145,7 +145,7 @@ Explicit separation:
 
 ## Infinite Scale Clarification
 
-Pulsar is not "infinitely scalable" in V1 or V2.
+Sysray is not "infinitely scalable" in V1 or V2.
 
 That phrase only becomes meaningful once the product has:
 
@@ -158,4 +158,4 @@ That phrase only becomes meaningful once the product has:
 - backpressure
 - bounded resource usage guarantees
 
-Until then, Pulsar should be described as a local observability engine with a path toward distributed operation.
+Until then, Sysray should be described as a local observability engine with a path toward distributed operation.

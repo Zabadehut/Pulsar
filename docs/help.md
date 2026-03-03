@@ -1,24 +1,24 @@
-# Pulsar Help
+# Sysray Help
 
 This page aligns the operator help with the current CLI surface.
 
 ## Available Now
 
-Use `pulsar --help` for the command index and `pulsar <command> --help` for command details.
+Use `sysray --help` for the command index and `sysray <command> --help` for command details.
 
 Current commands:
 
-- `pulsar`
-- `pulsar tui`
-- `pulsar snapshot --format json|csv|prometheus`
-- `pulsar inventory --format table|json`
-- `pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip`
-- `pulsar server --port 9090`
-- `pulsar top --sort cpu --limit 20`
-- `pulsar watch --pid <PID>`
-- `pulsar replay <FILE>`
-- `pulsar explain <TERM> [--lang fr|en] [--audience beginner|expert]`
-- `pulsar service install|status|uninstall`
+- `sysray`
+- `sysray tui`
+- `sysray snapshot --format json|csv|prometheus`
+- `sysray inventory --format table|json`
+- `sysray record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip`
+- `sysray server --port 9090`
+- `sysray top --sort cpu --limit 20`
+- `sysray watch --pid <PID>`
+- `sysray replay <FILE>`
+- `sysray explain <TERM> [--lang fr|en] [--audience beginner|expert]`
+- `sysray service install|status|uninstall`
 
 HTTP inventory helper:
 
@@ -76,7 +76,7 @@ Index behavior:
 
 Product boundary reminder:
 
-- richer local operator diagnostics belong in Pulsar Core
+- richer local operator diagnostics belong in Sysray Core
 - enterprise scope starts at governance, fleet policy, shared history, and access control
 
 ## Command Notes
@@ -95,7 +95,7 @@ Current example:
 
 ```bash
 mkdir -p ./captures
-pulsar record \
+sysray record \
   --interval 5s \
   --output ./captures \
   --rotate hourly \
@@ -109,9 +109,9 @@ pulsar record \
 Examples:
 
 ```bash
-pulsar snapshot --format json
-pulsar snapshot --format csv
-pulsar snapshot --format prometheus
+sysray snapshot --format json
+sysray snapshot --format csv
+sysray snapshot --format prometheus
 ```
 
 ### `service`
@@ -119,22 +119,22 @@ pulsar snapshot --format prometheus
 Examples:
 
 ```bash
-pulsar service install
-pulsar service status
-pulsar service uninstall
+sysray service install
+sysray service status
+sysray service uninstall
 ```
 
 Developer reminder on Linux:
 
-- `cargo build` updates `target/debug/pulsar` only
-- the `systemd --user` service usually runs `~/.local/bin/pulsar` via `~/.local/share/pulsar/pulsar-service.sh`
+- `cargo build` updates `target/debug/sysray` only
+- the `systemd --user` service usually runs `~/.local/bin/sysray` via `~/.local/share/sysray/sysray-service.sh`
 - after local code changes, reinstall the binary before restarting the service
 
 ```bash
 ./scripts/install-linux-user.sh
-systemctl --user restart pulsar.service
-systemctl --user status pulsar.service --no-pager
-journalctl --user -u pulsar.service -n 50 --no-pager
+systemctl --user restart sysray.service
+systemctl --user status sysray.service --no-pager
+journalctl --user -u sysray.service -n 50 --no-pager
 ```
 
 OS mapping:
@@ -150,7 +150,7 @@ These shapes are documented for roadmap clarity only. They do not exist in the c
 ### Planned standalone archive command
 
 ```bash
-pulsar archive zip \
+sysray archive zip \
   --input ./captures/pulsar_20260303_140000.jsonl \
   --output ./captures/pulsar_20260303_140000.jsonl.zip
 ```

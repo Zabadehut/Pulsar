@@ -1,18 +1,18 @@
 param(
-    [string]$Binary = "target/debug/pulsar.exe"
+    [string]$Binary = "target/debug/sysray.exe"
 )
 
 $ErrorActionPreference = "Stop"
 $Binary = (Resolve-Path $Binary).Path
 
-$root = Join-Path $env:RUNNER_TEMP ("pulsar-service-validation-" + [guid]::NewGuid().ToString())
+$root = Join-Path $env:RUNNER_TEMP ("sysray-service-validation-" + [guid]::NewGuid().ToString())
 $env:APPDATA = Join-Path $root "AppData\Roaming"
 New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
 
-$appDir = Join-Path $env:APPDATA "Pulsar"
-$runnerPath = Join-Path $appDir "pulsar-service.cmd"
-$xmlPath = Join-Path $appDir "pulsar-task.xml"
-$configPath = Join-Path $appDir "pulsar.toml"
+$appDir = Join-Path $env:APPDATA "Sysray"
+$runnerPath = Join-Path $appDir "sysray-service.cmd"
+$xmlPath = Join-Path $appDir "sysray-task.xml"
+$configPath = Join-Path $appDir "sysray.toml"
 
 try {
     & $Binary service install

@@ -19,7 +19,7 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>__PULSAR_RUNNER__</Command>
+      <Command>__SYSRAY_RUNNER__</Command>
     </Exec>
   </Actions>
 </Task>

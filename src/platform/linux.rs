@@ -1660,8 +1660,8 @@ mod tests {
 
     #[test]
     fn parses_cgroup_v2_path() {
-        let path = parse_cgroup_v2_path("0::/user.slice/app.slice/pulsar.service\n").unwrap();
-        assert_eq!(path, "/user.slice/app.slice/pulsar.service");
+        let path = parse_cgroup_v2_path("0::/user.slice/app.slice/sysray.service\n").unwrap();
+        assert_eq!(path, "/user.slice/app.slice/sysray.service");
     }
 
     #[test]

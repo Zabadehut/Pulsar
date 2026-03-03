@@ -13,7 +13,7 @@ Suggested issues:
 1. Add benchmark harness for collection overhead
 2. Document measured local overhead in docs
 3. Expand Linux collector regression coverage beyond the current baseline
-4. Validate `pulsar service install/status/uninstall` on Linux user services under stricter scenarios
+4. Validate `sysray service install/status/uninstall` on Linux user services under stricter scenarios
 5. Keep CLI help and docs aligned with implemented commands
 6. Stress-test Linux behavior on busy hosts
 
@@ -84,7 +84,7 @@ Definition of done:
 
 ## Milestone 5: High-Value Differentiators
 
-Goal: move beyond parity and add strong reasons to use Pulsar over legacy tools.
+Goal: move beyond parity and add strong reasons to use Sysray over legacy tools.
 
 Suggested issues:
 
@@ -97,7 +97,7 @@ Suggested issues:
 
 Definition of done:
 
-- Pulsar has at least two strong differentiators visible to users
+- Sysray has at least two strong differentiators visible to users
 
 ## Milestone 6: Performance and Hardware Affinity
 
@@ -129,7 +129,7 @@ Suggested issues:
 
 Definition of done:
 
-- Pulsar can explain more than basic host saturation
+- Sysray can explain more than basic host saturation
 
 ## Milestone 8: Distributed Platform
 

@@ -7,8 +7,8 @@ That keeps the private key scoped to the publish job instead of exposing it to e
 
 Required secrets for signed releases:
 
-- `PULSAR_GPG_PRIVATE_KEY`: ASCII-armored private key, base64-encoded before upload
-- `PULSAR_GPG_KEY_ID`: key identifier used by `gpg --local-user`
+- `SYSRAY_GPG_PRIVATE_KEY`: ASCII-armored private key, base64-encoded before upload
+- `SYSRAY_GPG_KEY_ID`: key identifier used by `gpg --local-user`
 
 Example to prepare the secret payload locally:
 
@@ -49,7 +49,7 @@ The same local command remains the source of truth for release assembly:
 ./scripts/build-complete.sh
 ```
 
-If `PULSAR_GPG_KEY_ID` is set and the matching private key is available in the local GPG keyring, the script also emits `dist/*.SHA256SUMS.asc`.
+If `SYSRAY_GPG_KEY_ID` is set and the matching private key is available in the local GPG keyring, the script also emits `dist/*.SHA256SUMS.asc`.
 
 ## Linux User Install
 
@@ -59,4 +59,4 @@ For local Linux installs, prefer the stable user-level install script:
 ./scripts/install-linux-user.sh
 ```
 
-It installs the bundled release binary to `~/.local/bin/pulsar` and reinstalls the user service against that path, which avoids services being pinned to `target/debug/pulsar`.
+It installs the bundled release binary to `~/.local/bin/sysray` and reinstalls the user service against that path, which avoids services being pinned to `target/debug/sysray`.

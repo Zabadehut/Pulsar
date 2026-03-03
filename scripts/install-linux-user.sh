@@ -20,12 +20,12 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/install-linux-user.sh [--no-build] [--force-build] [--no-service]
 
-Installs the current Linux release build to ~/.local/bin/pulsar.
+Installs the current Linux release build to ~/.local/bin/sysray.
 
 Options:
   --no-build    Fail instead of running ./scripts/build-complete.sh when dist/ is missing
   --force-build Always run ./scripts/build-complete.sh before install
-  --no-service  Skip pulsar user service reinstall
+  --no-service  Skip sysray user service reinstall
   -h, --help    Show this help message
 EOF
 }
@@ -64,10 +64,10 @@ require_command() {
 require_command rustc
 require_command install
 
-BUNDLE_NAME="pulsar-${VERSION}-${HOST_TARGET}"
-SOURCE_BINARY="$ROOT_DIR/dist/$BUNDLE_NAME/standalone/pulsar"
+BUNDLE_NAME="sysray-${VERSION}-${HOST_TARGET}"
+SOURCE_BINARY="$ROOT_DIR/dist/$BUNDLE_NAME/standalone/sysray"
 DEST_DIR="$HOME/.local/bin"
-DEST_BINARY="$DEST_DIR/pulsar"
+DEST_BINARY="$DEST_DIR/sysray"
 
 if [[ "$FORCE_BUILD" -eq 1 ]]; then
   "$ROOT_DIR/scripts/build-complete.sh"
@@ -98,7 +98,7 @@ if [[ "$REINSTALL_SERVICE" -eq 1 ]]; then
   if command -v systemctl >/dev/null 2>&1; then
     "$DEST_BINARY" service uninstall || true
     "$DEST_BINARY" service install
-    systemctl --user status pulsar.service --no-pager || true
+    systemctl --user status sysray.service --no-pager || true
   else
     echo "systemctl not available; skipped user service install" >&2
   fi

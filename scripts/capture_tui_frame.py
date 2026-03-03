@@ -20,7 +20,7 @@ def set_winsize(fd: int, rows: int, cols: int) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Capture one real Pulsar TUI frame through a PTY.")
+    parser = argparse.ArgumentParser(description="Capture one real Sysray TUI frame through a PTY.")
     parser.add_argument("--output", required=True, help="Path to the raw typescript output file")
     parser.add_argument("--rows", type=int, default=40)
     parser.add_argument("--cols", type=int, default=140)
@@ -36,7 +36,7 @@ def main() -> int:
     parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
-        help="Command to execute after --, for example -- target/debug/pulsar",
+        help="Command to execute after --, for example -- target/debug/sysray",
     )
     args = parser.parse_args()
 

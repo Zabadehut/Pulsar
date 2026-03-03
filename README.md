@@ -1,18 +1,18 @@
-# Pulsar
+# Sysray
 
-**Your system. Always beating.**
+**Modern host diagnostics in one binary.**
 
-Pulsar is a system observability engine written in Rust.
+Sysray is a system observability engine written in Rust.
 It is being built as a modern replacement for legacy local monitoring tools such as NMON: single binary, low overhead, cross-platform by design, and extensible from day one.
 
 Current workspace version: `0.4.0`
 
 ## Positioning
 
-Pulsar is not presented as a finished enterprise platform today.
+Sysray is not presented as a finished enterprise platform today.
 What exists already is a serious technical foundation with working Linux collectors, a TUI, JSON/CSV/Prometheus exporters, a post-collection pipeline, and a cross-platform abstraction layer that is ready to receive real macOS and Windows implementations.
 
-What Pulsar aims to become:
+What Sysray aims to become:
 
 - A fast local observability binary for Linux, macOS, and Windows
 - A strong open core foundation for future Pro, Cloud, and enterprise offerings
@@ -20,8 +20,8 @@ What Pulsar aims to become:
 
 Product boundary:
 
-- Pulsar Core should include deep local diagnostics for advanced operators
-- Pulsar Enterprise should add governance, fleet-level control, and shared history
+- Sysray Core should include deep local diagnostics for advanced operators
+- Sysray Enterprise should add governance, fleet-level control, and shared history
 - Enterprise is not where local expert analysis gets hidden
 
 ## Current Status
@@ -70,7 +70,7 @@ What is not finished yet:
 - Infinitely scalable
 - Full macOS and Windows support
 
-## Why Pulsar
+## Why Sysray
 
 - Clean internal architecture: collectors, scheduler, exporters, pipeline, platform layer
 - Rust performance and memory safety
@@ -80,7 +80,7 @@ What is not finished yet:
 
 ## Commands
 
-Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
+Use `sysray --help` for the live CLI and `sysray <command> --help` for per-command details.
 Built-in recording rotation, retention, and closed-segment `zip` compression are now in the CLI. The standalone archive command is still planned and documented in [`docs/help.md`](docs/help.md).
 The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `l` for the live logs pane, `L` to add watched paths, `e` for an error-focused logs view, `1` to `6` for operator presets, `7` to `0` for expert local diagnostics, `g` for `inventory+`, `v` for detail density, and `i` to switch `fr`/`en`. The Linux panel toggle now lives on `k` so `l` stays dedicated to logs. The index follows the active language and specialist view context. In practice, `io` is the broad storage preset, `disk+` is the contention/performance drill-down, and `inventory+` is the local topology / stack / refs view. The logs pane now follows active files incrementally with offset tracking and rotation/truncation detection.
 
@@ -88,27 +88,27 @@ The TUI now exposes a technical reference pane with `/` for search, `?` for the 
 
 Overview TUI:
 
-![Pulsar TUI overview](docs/screenshots/tui-overview-real.svg)
+![Sysray TUI overview](docs/screenshots/tui-overview-real.svg)
 
 Expert network view:
 
-![Pulsar expert network diagnostics](docs/screenshots/tui-expert-network-real.svg)
+![Sysray expert network diagnostics](docs/screenshots/tui-expert-network-real.svg)
 
 Expert pressure view:
 
-![Pulsar expert pressure diagnostics](docs/screenshots/tui-expert-pressure-real.svg)
+![Sysray expert pressure diagnostics](docs/screenshots/tui-expert-pressure-real.svg)
 
 Expert JVM view:
 
-![Pulsar expert JVM diagnostics](docs/screenshots/tui-expert-jvm-real.svg)
+![Sysray expert JVM diagnostics](docs/screenshots/tui-expert-jvm-real.svg)
 
 Expert disk view:
 
-![Pulsar expert disk diagnostics](docs/screenshots/tui-expert-disk-real.svg)
+![Sysray expert disk diagnostics](docs/screenshots/tui-expert-disk-real.svg)
 
 Disk inventory view:
 
-![Pulsar expert disk inventory](docs/screenshots/tui-expert-inventory-real.svg)
+![Sysray expert disk inventory](docs/screenshots/tui-expert-inventory-real.svg)
 
 These captures are generated from real terminal frames with:
 
@@ -118,34 +118,34 @@ bash scripts/capture-tui-screens.sh docs/screenshots
 
 ```bash
 # Interactive TUI
-pulsar
+sysray
 
 # One-shot snapshot
-pulsar snapshot --format json
+sysray snapshot --format json
 
 # Continuous recording
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 48 --compress zip
+sysray record --interval 5s --output ./captures --rotate hourly --keep-files 48 --compress zip
 
 # HTTP server
-pulsar server --port 9090
+sysray server --port 9090
 
 # Top processes
-pulsar top --sort cpu --limit 20
+sysray top --sort cpu --limit 20
 
 # Watch one process
-pulsar watch --pid 1234
+sysray watch --pid 1234
 
 # Replay a recorded session
-pulsar replay ./captures/pulsar_20260303_130000.jsonl
+sysray replay ./captures/pulsar_20260303_130000.jsonl
 
 # Explain a technical term
-pulsar explain latency
-pulsar explain swap --lang en --audience beginner
+sysray explain latency
+sysray explain swap --lang en --audience beginner
 
 # Service integration
-pulsar service install
-pulsar service status
-pulsar service uninstall
+sysray service install
+sysray service status
+sysray service uninstall
 ```
 
 ## Linux Install And Update
@@ -167,7 +167,7 @@ Recommended user-level install:
 This script:
 
 - builds the release bundle if `dist/` is missing
-- installs the release binary to `~/.local/bin/pulsar`
+- installs the release binary to `~/.local/bin/sysray`
 - reinstalls the user service so it points to that stable binary path
 
 For a fresh rebuild from the current workspace before install:
@@ -186,21 +186,21 @@ Manual update flow:
 
 ```bash
 ./scripts/build-complete.sh
-install -m 755 dist/pulsar-<version>-<target>/standalone/pulsar ~/.local/bin/pulsar
-~/.local/bin/pulsar service uninstall
-~/.local/bin/pulsar service install
-systemctl --user status pulsar.service
+install -m 755 dist/sysray-<version>-<target>/standalone/sysray ~/.local/bin/sysray
+~/.local/bin/sysray service uninstall
+~/.local/bin/sysray service install
+systemctl --user status sysray.service
 ```
 
 ## Configuration
 
-Example configuration is available in [`config/pulsar.toml.example`](config/pulsar.toml.example).
+Example configuration is available in [`config/sysray.toml.example`](config/sysray.toml.example).
 
-Pulsar uses:
+Sysray uses:
 
-- Config file: `pulsar.toml`
-- Env var: `PULSAR_CONFIG`
-- Binary name: `pulsar`
+- Config file: `sysray.toml`
+- Env var: `SYSRAY_CONFIG`
+- Binary name: `sysray`
 
 Recording defaults can now also be centralized in the config file:
 
@@ -259,7 +259,7 @@ Detailed planning documents:
 
 ## Cross-Platform Strategy
 
-Pulsar is cross-platform by architecture today, not yet by implementation completeness.
+Sysray is cross-platform by architecture today, not yet by implementation completeness.
 
 That distinction matters:
 
@@ -310,7 +310,7 @@ For a stricter breakdown of what belongs to V1, V2, V3, and enterprise scope, se
 
 ## Community And Enterprise
 
-Pulsar Core is intended to stay community-accessible and open source.
+Sysray Core is intended to stay community-accessible and open source.
 That community/core layer should keep getting the main local observability primitives: collectors, TUI, exporters, replay, Linux depth, and cross-platform baseline support.
 
 The enterprise track is a separate concern:
@@ -338,10 +338,10 @@ Use the Linux benchmark harness to measure local overhead before making performa
 
 Results are written under `.benchmarks/<UTC_RUN_ID>/` with both `summary.md` and `summary.csv`.
 
-On the March 3, 2026 Rocky Linux baseline run (`30s`, `5s`, `25` snapshots), `pulsar record` measured about `0.35%` average CPU and `~13 MB` RSS, while repeated one-shot JSON snapshots measured about `0.83%` average CPU with a similar peak RSS. See [`docs/benchmarking.md`](docs/benchmarking.md).
+On the March 3, 2026 Rocky Linux baseline run (`30s`, `5s`, `25` snapshots), `sysray record` measured about `0.35%` average CPU and `~13 MB` RSS, while repeated one-shot JSON snapshots measured about `0.83%` average CPU with a similar peak RSS. See [`docs/benchmarking.md`](docs/benchmarking.md).
 
 `cargo build` only rebuilds the workspace binary in `target/debug/`.
-It does not update the user service binary installed in `~/.local/bin/pulsar`.
+It does not update the user service binary installed in `~/.local/bin/sysray`.
 
 ## Dev Workstation Update Flow
 
@@ -349,8 +349,8 @@ For this local Linux developer setup, the user service runs the installed binary
 
 Current service runner:
 
-- `~/.config/systemd/user/pulsar.service` -> `~/.local/share/pulsar/pulsar-service.sh`
-- `~/.local/share/pulsar/pulsar-service.sh` -> `~/.local/bin/pulsar`
+- `~/.config/systemd/user/sysray.service` -> `~/.local/share/sysray/sysray-service.sh`
+- `~/.local/share/sysray/sysray-service.sh` -> `~/.local/bin/sysray`
 
 Recommended flow after code changes:
 
@@ -365,11 +365,11 @@ This script runs:
 - `cargo test`
 - `cargo build`
 - `./scripts/install-linux-user.sh --force-build`
-- `systemctl --user restart pulsar.service`
-- `systemctl --user status pulsar.service --no-pager`
-- `journalctl --user -u pulsar.service -n 50 --no-pager`
+- `systemctl --user restart sysray.service`
+- `systemctl --user status sysray.service --no-pager`
+- `journalctl --user -u sysray.service -n 50 --no-pager`
 
-If you only run `cargo build`, you have rebuilt the dev binary in `target/debug/`, but the service still uses the installed binary in `~/.local/bin/pulsar` until you reinstall it.
+If you only run `cargo build`, you have rebuilt the dev binary in `target/debug/`, but the service still uses the installed binary in `~/.local/bin/sysray` until you reinstall it.
 
 If you want the manual flow instead of the helper script:
 
@@ -379,9 +379,9 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 cargo build
 ./scripts/install-linux-user.sh --force-build
-systemctl --user restart pulsar.service
-systemctl --user status pulsar.service --no-pager
-journalctl --user -u pulsar.service -n 50 --no-pager
+systemctl --user restart sysray.service
+systemctl --user status sysray.service --no-pager
+journalctl --user -u sysray.service -n 50 --no-pager
 ```
 
 ## Complete Build
@@ -401,12 +401,12 @@ This command runs:
 
 It then creates:
 
-- `dist/pulsar-<version>-<target>/standalone/`
-- `dist/pulsar-<version>-<target>/install-prereqs/`
-- `dist/pulsar-<version>-<target>.tar.gz`
-- `dist/pulsar-<version>-<target>.zip` on Windows targets
-- `dist/pulsar-<version>-<target>.SHA256SUMS`
-- `dist/pulsar-<version>-<target>.SHA256SUMS.asc` when `gpg` is available and `PULSAR_GPG_KEY_ID` is set
+- `dist/sysray-<version>-<target>/standalone/`
+- `dist/sysray-<version>-<target>/install-prereqs/`
+- `dist/sysray-<version>-<target>.tar.gz`
+- `dist/sysray-<version>-<target>.zip` on Windows targets
+- `dist/sysray-<version>-<target>.SHA256SUMS`
+- `dist/sysray-<version>-<target>.SHA256SUMS.asc` when `gpg` is available and `SYSRAY_GPG_KEY_ID` is set
 
 CI runs this same script on Linux, macOS, and Windows and uploads the generated `dist/` artifacts automatically.
 
@@ -416,7 +416,7 @@ Release publication on GitHub is triggered by pushing a `v*` tag and requires th
 
 Apache License 2.0.
 
-Pulsar Core is intended to remain open source.
+Sysray Core is intended to remain open source.
 
 ## Author
 

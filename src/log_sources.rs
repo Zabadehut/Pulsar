@@ -701,7 +701,7 @@ mod tests {
 
     #[test]
     fn refresh_tailed_paths_reads_only_new_lines() {
-        let dir = std::env::temp_dir().join(format!("pulsar-log-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sysray-log-test-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
         let file = dir.join("app.log");
         fs::write(&file, "first\n").unwrap();
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn refresh_tailed_paths_detects_truncation() {
-        let dir = std::env::temp_dir().join(format!("pulsar-log-trunc-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sysray-log-trunc-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
         let file = dir.join("rotate.log");
         fs::write(&file, "before\n").unwrap();

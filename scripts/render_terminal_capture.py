@@ -157,7 +157,7 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     parser.add_argument("--rows", type=int, default=40)
     parser.add_argument("--cols", type=int, default=140)
-    parser.add_argument("--title", default="Pulsar terminal capture")
+    parser.add_argument("--title", default="Sysray terminal capture")
     args = parser.parse_args()
 
     with open(args.input, "rb") as handle:

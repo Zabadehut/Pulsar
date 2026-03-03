@@ -1,4 +1,4 @@
-# Pulsar Execution Roadmap
+# Sysray Execution Roadmap
 
 This roadmap turns the metric checklist and backlog into a concrete delivery order.
 
@@ -34,7 +34,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar is a tested Linux observability foundation
+- Sysray is a tested Linux observability foundation
 - low-overhead goals are being measured, not guessed
 
 ## Phase 1: Complete V1 Linux Quality
@@ -57,7 +57,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar delivers a credible Linux local-observability V1
+- Sysray delivers a credible Linux local-observability V1
 
 ## Phase 2: Real Cross-Platform Support
 
@@ -81,11 +81,11 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar is a real cross-platform local observability tool
+- Sysray is a real cross-platform local observability tool
 
 ## Phase 3: High-Value Differentiators
 
-Goal: add the first set of metrics that clearly separate Pulsar from legacy tools.
+Goal: add the first set of metrics that clearly separate Sysray from legacy tools.
 
 Order:
 
@@ -98,13 +98,13 @@ Order:
 
 Exit criteria:
 
-- Pulsar has at least two modern differentiators beyond legacy host monitoring
+- Sysray has at least two modern differentiators beyond legacy host monitoring
 - replay and derived metrics are useful in real workflows
 
 What can be said after this phase:
 
-- Pulsar is more than a local host monitor
-- Pulsar offers modern Linux-specific observability depth
+- Sysray is more than a local host monitor
+- Sysray offers modern Linux-specific observability depth
 
 ## Phase 4: Performance and Hardware Affinity
 
@@ -125,7 +125,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar is performance-conscious with measured overhead
+- Sysray is performance-conscious with measured overhead
 
 ## Phase 5: Deep System and App Insight
 
@@ -145,7 +145,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar provides deeper diagnosis than legacy local monitoring tools
+- Sysray provides deeper diagnosis than legacy local monitoring tools
 
 ## Phase 6: Distributed Architecture
 
@@ -166,7 +166,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar has a real path toward distributed scale
+- Sysray has a real path toward distributed scale
 
 Until this phase is done, "scalable to infinity" should not appear in messaging.
 
@@ -190,7 +190,7 @@ Exit criteria:
 
 What can be said after this phase:
 
-- Pulsar has an enterprise-grade operational story
+- Sysray has an enterprise-grade operational story
 
 ## Recommended Immediate Sequence
 

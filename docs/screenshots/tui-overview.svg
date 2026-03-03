@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Pulsar TUI overview">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Sysray TUI overview">
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#111827"/>
@@ -37,8 +37,8 @@
   <text x="72" y="566" fill="#e5e7eb" font-size="19" font-family="monospace">tcp       est 31       listen 9       tw 4</text>
   <text x="648" y="476" fill="#a78bfa" font-size="22" font-family="monospace">◉ PROCESSUS (top 5)</text>
   <text x="648" y="510" fill="#e5e7eb" font-size="19" font-family="monospace">2711  java            24.1  1520 MB   S   96 thr   JVM</text>
-  <text x="648" y="538" fill="#e5e7eb" font-size="19" font-family="monospace">8676  pulsar           0.4    13 MB   S    5 thr</text>
+  <text x="648" y="538" fill="#e5e7eb" font-size="19" font-family="monospace">8676  sysray           0.4    13 MB   S    5 thr</text>
   <text x="648" y="566" fill="#e5e7eb" font-size="19" font-family="monospace">1042  postgres         2.1   214 MB   S   14 thr</text>
   <rect x="54" y="642" width="1136" height="28" rx="8" fill="#101827" stroke="#334155" stroke-width="1"/>
-  <text x="66" y="661" fill="#cbd5e1" font-size="15" font-family="monospace">q:quit  /:search  ?:index  1..6:modes  7..0:expert  -:clear expert  i:lang(fr)  v:detail(detailed)  Pulsar v0.2.0</text>
+  <text x="66" y="661" fill="#cbd5e1" font-size="15" font-family="monospace">q:quit  /:search  ?:index  1..6:modes  7..0:expert  -:clear expert  i:lang(fr)  v:detail(detailed)  Sysray v0.2.0</text>
 </svg>
