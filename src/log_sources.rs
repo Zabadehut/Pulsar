@@ -732,9 +732,9 @@ mod tests {
             .iter()
             .map(|entry| entry.message.as_str())
             .collect::<Vec<_>>();
-        assert!(messages.iter().any(|message| *message == "second"));
-        assert!(messages.iter().any(|message| *message == "third"));
-        assert!(!messages.iter().any(|message| *message == "first"));
+        assert!(messages.contains(&"second"));
+        assert!(messages.contains(&"third"));
+        assert!(!messages.contains(&"first"));
     }
 
     #[test]
