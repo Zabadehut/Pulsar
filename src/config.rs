@@ -16,6 +16,8 @@ pub struct Config {
     pub tui: TuiConfig,
     #[serde(default)]
     pub pipeline: PipelineConfig,
+    #[serde(default)]
+    pub record: RecordConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +103,16 @@ pub struct AlertThresholds {
     pub cgroup_memory_critical_pct: f64,
     pub cgroup_cpu_throttling_warning_pct: f64,
     pub cgroup_cpu_throttling_critical_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RecordConfig {
+    pub interval_secs: u64,
+    pub output: String,
+    pub rotate: String,
+    pub max_file_size_mb: Option<u64>,
+    pub keep_files: Option<usize>,
 }
 
 impl Default for GeneralConfig {
@@ -194,6 +206,18 @@ impl Default for AlertThresholds {
             cgroup_memory_critical_pct: 95.0,
             cgroup_cpu_throttling_warning_pct: 10.0,
             cgroup_cpu_throttling_critical_pct: 25.0,
+        }
+    }
+}
+
+impl Default for RecordConfig {
+    fn default() -> Self {
+        Self {
+            interval_secs: 5,
+            output: ".".to_string(),
+            rotate: "never".to_string(),
+            max_file_size_mb: None,
+            keep_files: None,
         }
     }
 }

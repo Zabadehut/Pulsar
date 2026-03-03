@@ -6,6 +6,7 @@ mod engine;
 mod exporters;
 mod pipeline;
 mod platform;
+mod recording;
 mod reference;
 mod service;
 mod tui;
@@ -21,6 +22,7 @@ use config::Config;
 use engine::{Registry, Scheduler};
 use exporters::{csv::CsvExporter, json::JsonExporter, prometheus::PrometheusExporter, Exporter};
 use pipeline::{AlertStage, CpuTrendStage, MemoryPressureStage, PipelineRunner, PipelineStage};
+use recording::RecordRuntimeOptions;
 use reference::{Audience, Locale};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -62,8 +64,22 @@ async fn main() -> Result<()> {
         Commands::Snapshot { format } => run_snapshot(&config, &format).await,
         Commands::Server { port } => run_server(config, port).await,
         Commands::Top { sort, limit } => run_top(config, &sort, limit).await,
-        Commands::Record { interval, output } => {
-            run_record(config, parse_duration(&interval).unwrap_or(5), output).await
+        Commands::Record {
+            interval,
+            output,
+            rotate,
+            max_file_size_mb,
+            keep_files,
+        } => {
+            let options = RecordRuntimeOptions::from_sources(
+                &config.record,
+                interval.as_deref(),
+                output,
+                rotate.as_deref(),
+                max_file_size_mb,
+                keep_files,
+            );
+            run_record(config, options).await
         }
         Commands::Watch { pid } => run_watch(pid).await,
         Commands::Replay { file } => run_replay(file).await,
@@ -237,10 +253,10 @@ async fn run_top(config: Config, sort: &str, limit: usize) -> Result<()> {
 
 // ─── Mode Record ─────────────────────────────────────────────────────────────
 
-async fn run_record(config: Config, interval_secs: u64, output: PathBuf) -> Result<()> {
+async fn run_record(config: Config, options: RecordRuntimeOptions) -> Result<()> {
     info!(
         "Recording every {}s to {:?} — Ctrl+C to stop",
-        interval_secs, output
+        options.interval_secs, options.output
     );
     let (scheduler, mut rx) = Scheduler::new(build_registry(&config), build_pipeline(&config));
     let token = CancellationToken::new();
@@ -256,20 +272,14 @@ async fn run_record(config: Config, interval_secs: u64, output: PathBuf) -> Resu
         scheduler.run(token_clone2).await;
     });
 
-    let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = output.join(format!("pulsar_{}.jsonl", ts));
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&filename)?;
-    info!("Writing to {:?}", filename);
+    let mut recorder = recording::Recorder::new(options.clone())?;
 
-    let min_interval = std::time::Duration::from_secs(interval_secs);
+    let min_interval = std::time::Duration::from_secs(options.interval_secs);
     let mut last_write = std::time::Instant::now() - min_interval;
 
     while let Ok(tick) = rx.recv().await {
         if last_write.elapsed() >= min_interval {
-            writeln!(file, "{}", serde_json::to_string(&tick.snapshot)?)?;
+            recorder.write_snapshot(&tick.snapshot)?;
             last_write = std::time::Instant::now();
         }
     }
@@ -440,15 +450,5 @@ fn parse_audience(value: &str) -> Option<Audience> {
         "beginner" | "debutant" => Some(Audience::Beginner),
         "expert" => Some(Audience::Expert),
         _ => None,
-    }
-}
-
-fn parse_duration(s: &str) -> Option<u64> {
-    if let Some(n) = s.strip_suffix('s') {
-        n.parse().ok()
-    } else if let Some(n) = s.strip_suffix('m') {
-        n.parse::<u64>().ok().map(|v| v * 60)
-    } else {
-        s.parse().ok()
     }
 }

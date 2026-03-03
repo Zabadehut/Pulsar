@@ -29,7 +29,7 @@ What is working now:
 - Expanded Linux CI coverage across multiple Ubuntu runner versions plus a `musl` target check
 - Interactive TUI mode
 - One-shot snapshot export in JSON, CSV, and Prometheus text format
-- Local recording to `.jsonl`
+- Local recording to `.jsonl` with built-in rotation and raw retention controls
 - Post-collection computed metrics pipeline
 - Cross-platform platform layer with Linux implementation and macOS/Windows stubs
 - Service management scaffolding for `systemd`, `launchd`, and Windows Task Scheduler
@@ -72,8 +72,8 @@ What is not finished yet:
 ## Commands
 
 Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
-Planned recording rotation and built-in zip archiving are documented in [`docs/help.md`](docs/help.md), but they are not implemented in the CLI yet.
-The TUI now also exposes a technical reference pane with `/` for search and `?` for the index.
+Built-in raw recording rotation and retention are now in the CLI. Zip archive compression is still planned and documented in [`docs/help.md`](docs/help.md).
+The TUI now exposes a technical reference pane with `/` for search, `?` for the index, and `1` to `6` for operator presets.
 
 ```bash
 # Interactive TUI
@@ -83,7 +83,7 @@ pulsar
 pulsar snapshot --format json
 
 # Continuous recording
-pulsar record --interval 5s --output ./captures
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 48
 
 # HTTP server
 pulsar server --port 9090
@@ -160,6 +160,14 @@ Pulsar uses:
 - Config file: `pulsar.toml`
 - Env var: `PULSAR_CONFIG`
 - Binary name: `pulsar`
+
+Recording defaults can now also be centralized in the config file:
+
+- `record.interval_secs`
+- `record.output`
+- `record.rotate`
+- `record.max_file_size_mb`
+- `record.keep_files`
 
 ## Architecture
 

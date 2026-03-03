@@ -84,18 +84,17 @@ retention_local_archives: 7d
 retention_local_raw: active-only
 ```
 
-## Proposed Enterprise CLI Surface
+## Enterprise CLI Surface
 
-These commands are planned examples, not implemented CLI today, and not present in `pulsar --help`.
+Raw rotation and raw retention are already present in the CLI. Archive compression remains planned.
 
 ```bash
 pulsar record \
   --interval 5s \
   --output /var/lib/pulsar/captures \
   --rotate hourly \
-  --max-file-size 512MB \
-  --keep 168 \
-  --compress zip
+  --max-file-size-mb 512 \
+  --keep-files 168
 
 pulsar archive zip \
   --input /var/lib/pulsar/captures/pulsar_20260303_140000.jsonl \

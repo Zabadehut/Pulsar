@@ -7,15 +7,17 @@ use ratatui::{
     Frame,
 };
 
-pub fn render(
-    frame: &mut Frame,
-    area: Rect,
-    query: &str,
-    hits: &[SearchHit],
-    selected: usize,
-    theme: &Theme,
-) {
-    let title = if query.is_empty() {
+pub struct ReferenceWidgetState<'a> {
+    pub query: &'a str,
+    pub mode: &'a str,
+    pub visible_count: usize,
+    pub indexed_only_count: usize,
+    pub hits: &'a [SearchHit],
+    pub selected: usize,
+}
+
+pub fn render(frame: &mut Frame, area: Rect, state: ReferenceWidgetState<'_>, theme: &Theme) {
+    let title = if state.query.is_empty() {
         " ◉ REFERENCE INDEX "
     } else {
         " ◉ REFERENCE SEARCH "
@@ -33,8 +35,8 @@ pub fn render(
         return;
     }
 
-    if hits.is_empty() {
-        let empty = if query.is_empty() {
+    if state.hits.is_empty() {
+        let empty = if state.query.is_empty() {
             "Press / to search technical terms."
         } else {
             "No reference entry matches this query."
@@ -51,17 +53,32 @@ pub fn render(
     let mut lines = Vec::new();
     lines.push(Line::from(vec![
         Span::styled("query: ", theme.highlight_style()),
-        Span::raw(if query.is_empty() { "(index)" } else { query }),
+        Span::raw(if state.query.is_empty() {
+            "(index)"
+        } else {
+            state.query
+        }),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled("mode: ", theme.highlight_style()),
+        Span::raw(state.mode),
+        Span::raw("  "),
+        Span::styled("ui: ", theme.highlight_style()),
+        Span::raw(format!(
+            "{} visible / {} indexed",
+            state.visible_count, state.indexed_only_count
+        )),
     ]));
     lines.push(Line::default());
 
-    for (index, hit) in hits
+    for (index, hit) in state
+        .hits
         .iter()
-        .take(inner.height.saturating_sub(2) as usize)
+        .take(inner.height.saturating_sub(3) as usize)
         .enumerate()
     {
-        let marker = if index == selected { ">" } else { " " };
-        let style = if index == selected {
+        let marker = if index == state.selected { ">" } else { " " };
+        let style = if index == state.selected {
             theme.highlight_style()
         } else {
             theme.muted_style()
@@ -69,6 +86,8 @@ pub fn render(
         lines.push(Line::from(vec![
             Span::styled(format!("{marker} {} ", hit.entry.panel), style),
             Span::styled(hit.entry.title, style),
+            Span::raw(" "),
+            Span::styled(hit.entry.category, theme.highlight_style()),
             Span::raw(" "),
             Span::styled(
                 format!("{:?}/{:?}", hit.entry.status, hit.entry.ui_visibility),

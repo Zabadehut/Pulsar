@@ -1,10 +1,10 @@
 use crate::collectors::Snapshot;
-use crate::reference::{self, Locale, SearchHit};
+use crate::reference::{self, Locale, SearchHit, UiVisibility};
 use crate::tui::{
     theme::Theme,
     widgets::{
         alerts_widget, cpu_widget, disk_widget, linux_widget, memory_widget, network_widget,
-        process_widget, reference_widget,
+        process_widget, reference_widget, system_widget,
     },
 };
 use ratatui::{
@@ -16,6 +16,7 @@ use ratatui::{
 
 #[derive(Debug, Clone, Copy)]
 pub enum Panel {
+    System,
     Cpu,
     Memory,
     Linux,
@@ -27,6 +28,7 @@ pub enum Panel {
 
 #[derive(Debug, Clone, Copy)]
 struct PanelVisibility {
+    system: bool,
     cpu: bool,
     memory: bool,
     linux: bool,
@@ -39,6 +41,7 @@ struct PanelVisibility {
 impl Default for PanelVisibility {
     fn default() -> Self {
         Self {
+            system: true,
             cpu: true,
             memory: true,
             linux: true,
@@ -53,6 +56,7 @@ impl Default for PanelVisibility {
 impl PanelVisibility {
     fn toggle(&mut self, panel: Panel) {
         match panel {
+            Panel::System => self.system = !self.system,
             Panel::Cpu => self.cpu = !self.cpu,
             Panel::Memory => self.memory = !self.memory,
             Panel::Linux => self.linux = !self.linux,
@@ -65,6 +69,7 @@ impl PanelVisibility {
 
     fn is_visible(&self, panel: Panel) -> bool {
         match panel {
+            Panel::System => self.system,
             Panel::Cpu => self.cpu,
             Panel::Memory => self.memory,
             Panel::Linux => self.linux,
@@ -77,6 +82,7 @@ impl PanelVisibility {
 
     fn visible_count(&self) -> usize {
         [
+            self.system,
             self.cpu,
             self.memory,
             self.linux,
@@ -95,6 +101,17 @@ pub struct Dashboard {
     pub theme_name: String,
     pub theme: Theme,
     visibility: PanelVisibility,
+    operator_mode: OperatorMode,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum OperatorMode {
+    Overview,
+    Storage,
+    Network,
+    Process,
+    Pressure,
+    Full,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -112,6 +129,7 @@ impl Dashboard {
             theme: Theme::from_name(&theme_name),
             theme_name,
             visibility: PanelVisibility::default(),
+            operator_mode: OperatorMode::Full,
         }
     }
 
@@ -122,6 +140,11 @@ impl Dashboard {
 
     pub fn toggle_panel(&mut self, panel: Panel) {
         self.visibility.toggle(panel);
+    }
+
+    pub fn set_operator_mode(&mut self, mode: OperatorMode) {
+        self.operator_mode = mode;
+        self.visibility = mode.visibility();
     }
 
     pub fn render(&self, frame: &mut Frame, snapshot: &Snapshot, reference: &ReferenceUiState) {
@@ -176,6 +199,11 @@ impl Dashboard {
             Span::raw(format!("  {}  {}  {}  {}", hostname, os, uptime, ts)),
             Span::raw("  "),
             Span::styled(
+                format!("mode:{}", self.operator_mode.label()),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            Span::styled(
                 if reference.query.is_empty() {
                     "index:off".to_string()
                 } else {
@@ -217,7 +245,7 @@ impl Dashboard {
         snapshot: &Snapshot,
         reference: &ReferenceUiState,
     ) {
-        let left_panels = [Panel::Cpu, Panel::Memory, Panel::Linux];
+        let left_panels = [Panel::System, Panel::Cpu, Panel::Memory, Panel::Linux];
         let right_panels = [Panel::Disk, Panel::Network, Panel::Alerts];
 
         let has_left = left_panels
@@ -254,7 +282,7 @@ impl Dashboard {
             ),
             (false, false) => {
                 frame.render_widget(
-                    Paragraph::new("All panels hidden. Toggle with c/m/l/d/n/a/p."),
+                    Paragraph::new("All panels hidden. Toggle with s/c/m/l/d/n/a/p."),
                     area,
                 );
             }
@@ -292,11 +320,18 @@ impl Dashboard {
         snapshot: &Snapshot,
         reference: &ReferenceUiState,
     ) {
-        let panels = self.visible_panels(&[Panel::Cpu, Panel::Memory, Panel::Linux]);
+        let panels = self.visible_panels(&[Panel::System, Panel::Cpu, Panel::Memory, Panel::Linux]);
         let chunks = split_vertical(area, panels.len());
 
         for (panel, chunk) in panels.into_iter().zip(chunks.into_iter()) {
             match panel {
+                Panel::System => system_widget::render(
+                    frame,
+                    chunk,
+                    snapshot.system.as_ref(),
+                    &self.theme,
+                    self.panel_highlighted(Panel::System, reference),
+                ),
                 Panel::Cpu => cpu_widget::render(
                     frame,
                     chunk,
@@ -367,19 +402,43 @@ impl Dashboard {
     fn render_reference(&self, frame: &mut Frame, area: Rect, reference: &ReferenceUiState) {
         let hits = self.reference_hits(reference);
         let selected = reference.selected.min(hits.len().saturating_sub(1));
-        reference_widget::render(frame, area, &reference.query, &hits, selected, &self.theme);
+        let visible_count = hits
+            .iter()
+            .filter(|hit| hit.entry.ui_visibility == UiVisibility::Visible)
+            .count();
+        reference_widget::render(
+            frame,
+            area,
+            reference_widget::ReferenceWidgetState {
+                query: &reference.query,
+                mode: self.operator_mode.label(),
+                visible_count,
+                indexed_only_count: hits.len().saturating_sub(visible_count),
+                hits: &hits,
+                selected,
+            },
+            &self.theme,
+        );
     }
 
     fn reference_hits(&self, reference: &ReferenceUiState) -> Vec<SearchHit> {
         if reference.query.is_empty() {
-            reference::catalog_views(Locale::Fr)
+            let mut hits: Vec<SearchHit> = reference::catalog_views(Locale::Fr)
                 .into_iter()
                 .enumerate()
                 .map(|(index, entry)| SearchHit {
-                    score: 1usize.saturating_sub(index),
+                    score: self
+                        .operator_mode
+                        .reference_bias(entry.panel, entry.category, index),
                     entry,
                 })
-                .collect()
+                .collect();
+            hits.sort_by(|a, b| {
+                b.score
+                    .cmp(&a.score)
+                    .then_with(|| a.entry.title.cmp(b.entry.title))
+            });
+            hits
         } else {
             reference::search(&reference.query, Locale::Fr)
         }
@@ -391,6 +450,7 @@ impl Dashboard {
 
     fn panel_key(&self, panel: Panel) -> &'static str {
         match panel {
+            Panel::System => "system",
             Panel::Cpu => "cpu",
             Panel::Memory => "memory",
             Panel::Linux => "linux",
@@ -437,6 +497,20 @@ impl Dashboard {
             } else {
                 ":clear  "
             }),
+            Span::styled("1", self.theme.highlight_style()),
+            Span::raw(":overview  "),
+            Span::styled("2", self.theme.highlight_style()),
+            Span::raw(":storage  "),
+            Span::styled("3", self.theme.highlight_style()),
+            Span::raw(":network  "),
+            Span::styled("4", self.theme.highlight_style()),
+            Span::raw(":process  "),
+            Span::styled("5", self.theme.highlight_style()),
+            Span::raw(":pressure  "),
+            Span::styled("6", self.theme.highlight_style()),
+            Span::raw(":full  "),
+            panel_toggle_span("s", "sys", visibility.system, &self.theme),
+            Span::raw(" "),
             panel_toggle_span("c", "cpu", visibility.cpu, &self.theme),
             Span::raw(" "),
             panel_toggle_span("m", "mem", visibility.memory, &self.theme),
@@ -450,7 +524,7 @@ impl Dashboard {
             panel_toggle_span("a", "alerts", visibility.alerts, &self.theme),
             Span::raw(" "),
             panel_toggle_span("p", "proc", visibility.process, &self.theme),
-            Span::raw(format!("  visible:{}/7  ", self.visibility.visible_count())),
+            Span::raw(format!("  visible:{}/8  ", self.visibility.visible_count())),
             Span::styled(
                 format!(
                     "alerts:{} w:{} c:{}  ",
@@ -526,5 +600,94 @@ fn format_uptime(secs: u64) -> String {
         format!("up {}h {}m", hours, mins)
     } else {
         format!("up {}m", mins)
+    }
+}
+
+impl OperatorMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Overview => "overview",
+            Self::Storage => "storage",
+            Self::Network => "network",
+            Self::Process => "process",
+            Self::Pressure => "pressure",
+            Self::Full => "full",
+        }
+    }
+
+    fn visibility(self) -> PanelVisibility {
+        match self {
+            Self::Overview => PanelVisibility {
+                system: true,
+                cpu: true,
+                memory: true,
+                linux: false,
+                disk: false,
+                network: false,
+                alerts: true,
+                process: true,
+            },
+            Self::Storage => PanelVisibility {
+                system: false,
+                cpu: false,
+                memory: true,
+                linux: true,
+                disk: true,
+                network: false,
+                alerts: true,
+                process: true,
+            },
+            Self::Network => PanelVisibility {
+                system: true,
+                cpu: true,
+                memory: false,
+                linux: true,
+                disk: false,
+                network: true,
+                alerts: true,
+                process: false,
+            },
+            Self::Process => PanelVisibility {
+                system: true,
+                cpu: true,
+                memory: true,
+                linux: false,
+                disk: false,
+                network: false,
+                alerts: true,
+                process: true,
+            },
+            Self::Pressure => PanelVisibility {
+                system: false,
+                cpu: true,
+                memory: true,
+                linux: true,
+                disk: true,
+                network: false,
+                alerts: true,
+                process: false,
+            },
+            Self::Full => PanelVisibility::default(),
+        }
+    }
+
+    fn reference_bias(self, panel: &str, category: &str, index: usize) -> usize {
+        let preferred = match self {
+            Self::Overview => matches!(panel, "system" | "cpu" | "memory" | "alerts" | "process"),
+            Self::Storage => matches!(panel, "disk" | "linux" | "memory" | "alerts"),
+            Self::Network => matches!(panel, "network" | "system" | "cpu" | "linux"),
+            Self::Process => matches!(panel, "process" | "cpu" | "memory" | "alerts"),
+            Self::Pressure => {
+                matches!(panel, "memory" | "linux" | "alerts" | "disk" | "cpu")
+                    || matches!(category, "memory" | "linux" | "disk")
+            }
+            Self::Full => true,
+        };
+
+        if preferred {
+            10_000usize.saturating_sub(index)
+        } else {
+            1_000usize.saturating_sub(index)
+        }
     }
 }

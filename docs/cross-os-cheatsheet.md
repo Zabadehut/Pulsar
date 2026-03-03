@@ -41,14 +41,14 @@ Avoid:
 
 ## Core Commands By OS
 
-These commands reflect the current CLI. Planned rotation/archive commands are documented later and are not exposed by `pulsar --help` yet.
+These commands reflect the current CLI. Raw file rotation and retention are now implemented; zip archive compression remains planned.
 
 ### Linux
 
 ```bash
 pulsar
 pulsar snapshot --format json
-pulsar record --interval 5s --output ./captures
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24
 pulsar service install
 ```
 
@@ -57,7 +57,7 @@ pulsar service install
 ```bash
 pulsar
 pulsar snapshot --format json
-pulsar record --interval 5s --output ./captures
+pulsar record --interval 5s --output ./captures --rotate daily --keep-files 14
 pulsar service install
 launchctl list com.zabadehut.pulsar
 ```
@@ -67,7 +67,7 @@ launchctl list com.zabadehut.pulsar
 ```powershell
 pulsar.exe
 pulsar.exe snapshot --format json
-pulsar.exe record --interval 5s --output .\captures
+pulsar.exe record --interval 5s --output .\captures --rotate daily --keep-files 14
 pulsar.exe service install
 schtasks /Query /TN Pulsar /V /FO LIST
 ```
@@ -91,19 +91,19 @@ captures/
   pulsar_20260303_140000.jsonl.zip
 ```
 
-## Planned Rotation Matrix
+## Raw Rotation Matrix
 
-This is a proposed design, not implemented CLI today.
+This matrix matches the current raw recording CLI. Compression is still planned separately.
 
 | Usage pattern | Interval | Rotation | Max file size | Compression |
 |---|---|---|---|---|
-| Short incident capture | `1s` to `5s` | hourly | `256MB` | zip |
-| Standard baseline | `5s` to `15s` | daily | `512MB` | zip |
-| Long-running low-noise host | `30s` to `60s` | daily | `1GB` | zip |
+| Short incident capture | `1s` to `5s` | hourly | `256MB` | none yet |
+| Standard baseline | `5s` to `15s` | daily | `512MB` | none yet |
+| Long-running low-noise host | `30s` to `60s` | daily | `1GB` | none yet |
 
 ## Planned Portable Commands
 
-These command shapes are roadmap targets only. They are not in the current CLI help.
+Only archive compression is still a roadmap target. Recording rotation itself is already in the current CLI.
 
 ### Cross-OS recording
 
@@ -112,8 +112,8 @@ pulsar record \
   --interval 5s \
   --output ./captures \
   --rotate daily \
-  --max-file-size 512MB \
-  --compress zip
+  --max-file-size-mb 512 \
+  --keep-files 14
 ```
 
 ### Cross-OS archive compression

@@ -11,7 +11,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use dashboard::{Dashboard, Panel, ReferenceUiState};
+use dashboard::{Dashboard, OperatorMode, Panel, ReferenceUiState};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::time::Duration;
@@ -112,6 +112,10 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
                         dashboard.toggle_panel(Panel::Cpu);
                         terminal.clear()?;
                     }
+                    KeyCode::Char('s') | KeyCode::Char('S') => {
+                        dashboard.toggle_panel(Panel::System);
+                        terminal.clear()?;
+                    }
                     KeyCode::Char('m') | KeyCode::Char('M') => {
                         dashboard.toggle_panel(Panel::Memory);
                         terminal.clear()?;
@@ -135,6 +139,36 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
                     KeyCode::Char('p') | KeyCode::Char('P') => {
                         dashboard.toggle_panel(Panel::Process);
                         terminal.clear()?;
+                    }
+                    KeyCode::Char('1') => {
+                        dashboard.set_operator_mode(OperatorMode::Overview);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('2') => {
+                        dashboard.set_operator_mode(OperatorMode::Storage);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('3') => {
+                        dashboard.set_operator_mode(OperatorMode::Network);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('4') => {
+                        dashboard.set_operator_mode(OperatorMode::Process);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('5') => {
+                        dashboard.set_operator_mode(OperatorMode::Pressure);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('6') => {
+                        dashboard.set_operator_mode(OperatorMode::Full);
+                        terminal.clear()?;
+                    }
+                    KeyCode::Up if reference.visible => {
+                        reference.selected = reference.selected.saturating_sub(1);
+                    }
+                    KeyCode::Down if reference.visible => {
+                        reference.selected = reference.selected.saturating_add(1);
                     }
                     _ => {}
                 }

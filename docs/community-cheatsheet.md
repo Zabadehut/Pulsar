@@ -41,7 +41,7 @@ pulsar snapshot --format json
 pulsar snapshot --format prometheus
 
 # continuous local recording
-pulsar record --interval 5s --output ./captures
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24
 
 # top processes
 pulsar top --sort cpu --limit 20
@@ -65,7 +65,7 @@ pulsar top --sort cpu --limit 20
 
 ```bash
 mkdir -p ./captures
-pulsar record --interval 5s --output ./captures
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24
 ```
 
 ### Linux user service
@@ -82,17 +82,17 @@ systemctl --user status pulsar.service
 - do not move core host observability behind enterprise gating
 - describe macOS and Windows as baseline coverage until parity is real
 
-## Planned Recording Rotation
+## Recording Rotation
 
-This is a proposed portable design, not an implemented CLI today and not shown in `pulsar --help` yet.
+Raw rotation and raw retention are implemented in the current CLI. Only archive compression is still planned.
 
 ### Recommended policy
 
 - rotate hourly for dense troubleshooting captures
 - rotate daily for long-running baseline captures
 - force rotation when a file exceeds a max size such as `256MB`, `512MB`, or `1GB`
-- compress rotated files to reduce retention cost
-- keep the active file uncompressed for fast writes
+- keep only a bounded number of raw files locally
+- keep compression as a later layer so the write path stays cheap
 
 ### Proposed CLI shape
 
@@ -101,17 +101,15 @@ pulsar record \
   --interval 5s \
   --output ./captures \
   --rotate hourly \
-  --max-file-size 512MB \
-  --keep 168 \
-  --compress zip
+  --max-file-size-mb 512 \
+  --keep-files 168
 ```
 
-### Proposed semantics
+### Current semantics
 
-- `--rotate hourly|daily|size-only`
-- `--max-file-size <bytes|MB|GB>`
-- `--keep <count>` keeps the latest rotated archives
-- `--compress zip` compresses only closed segments
+- `--rotate never|hourly|daily`
+- `--max-file-size-mb <MB>`
+- `--keep-files <count>` keeps the latest raw `.jsonl` segments
 
 ## Planned Rust-Only Zip Command
 

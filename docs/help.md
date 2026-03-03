@@ -11,7 +11,7 @@ Current commands:
 - `pulsar`
 - `pulsar tui`
 - `pulsar snapshot --format json|csv|prometheus`
-- `pulsar record --interval 5s --output ./captures`
+- `pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24`
 - `pulsar server --port 9090`
 - `pulsar top --sort cpu --limit 20`
 - `pulsar watch --pid <PID>`
@@ -28,6 +28,8 @@ TUI knowledge helper:
 
 - `/` opens reference search
 - `?` toggles the technical index
+- `1`..`6` switch operator presets (`overview`, `storage`, `network`, `process`, `pressure`, `full`)
+- `s` toggles the system panel
 - `Esc` closes search or the index pane
 
 ## Command Notes
@@ -37,15 +39,21 @@ TUI knowledge helper:
 Current behavior:
 
 - writes local `.jsonl` files
-- does not yet rotate files by time
-- does not yet rotate files by size
+- can rotate raw files by hour or day
+- can rotate raw files on size threshold with `--max-file-size-mb`
+- can prune old raw files with `--keep-files`
 - does not yet compress rotated archives
 
 Current example:
 
 ```bash
 mkdir -p ./captures
-pulsar record --interval 5s --output ./captures
+pulsar record \
+  --interval 5s \
+  --output ./captures \
+  --rotate hourly \
+  --max-file-size-mb 512 \
+  --keep-files 48
 ```
 
 ### `snapshot`
@@ -91,19 +99,7 @@ OS mapping:
 
 These shapes are documented for roadmap clarity only. They do not exist in the current binary help.
 
-### Planned recording rotation
-
-```bash
-pulsar record \
-  --interval 5s \
-  --output ./captures \
-  --rotate hourly \
-  --max-file-size 512MB \
-  --keep 168 \
-  --compress zip
-```
-
-### Planned portable archive command
+### Planned archive compression
 
 ```bash
 pulsar archive zip \

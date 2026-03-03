@@ -60,3 +60,10 @@ cgroup_memory_warning_pct        = 80.0
 cgroup_memory_critical_pct       = 95.0
 cgroup_cpu_throttling_warning_pct  = 10.0
 cgroup_cpu_throttling_critical_pct = 25.0
+
+[record]
+interval_secs    = 5
+output           = "."
+rotate           = "never" # never | hourly | daily
+max_file_size_mb = 0       # 0 disables size rotation
+keep_files       = 0       # 0 disables raw retention pruning

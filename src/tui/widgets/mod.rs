@@ -6,3 +6,4 @@ pub mod memory_widget;
 pub mod network_widget;
 pub mod process_widget;
 pub mod reference_widget;
+pub mod system_widget;
