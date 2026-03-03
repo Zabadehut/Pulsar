@@ -239,14 +239,17 @@ mod windows {
 
                 let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
                 write_template(&xml_path, &content)?;
+                let task_command = format!("cmd.exe /c \"\\\"{}\\\"\"", runner_path.display());
                 run_command(
                     "schtasks",
                     &[
                         "/Create",
                         "/TN",
                         task_name,
-                        "/XML",
-                        xml_path.to_string_lossy().as_ref(),
+                        "/SC",
+                        "ONLOGON",
+                        "/TR",
+                        &task_command,
                         "/F",
                     ],
                 )?;
