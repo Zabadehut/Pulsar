@@ -36,6 +36,11 @@ TUI knowledge helper:
 - `s` toggles the system panel
 - `Esc` closes search or the index pane
 
+Index behavior:
+
+- the technical index is localized with the TUI language
+- expert local views also bias the index toward their own diagnostics and terms
+
 Product boundary reminder:
 
 - richer local operator diagnostics belong in Pulsar Core

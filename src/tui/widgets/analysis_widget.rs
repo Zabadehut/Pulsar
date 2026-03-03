@@ -72,37 +72,50 @@ pub fn render(
 
 fn pressure_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Line<'static>> {
     let mem_pressure = snapshot.computed.memory_pressure * 100.0;
-    let (psi_cpu, psi_mem, psi_io, cgroup_mem) = if let Some(linux) = snapshot.linux.as_ref() {
-        (
-            linux
-                .psi
-                .as_ref()
-                .and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10))
-                .unwrap_or(0.0),
-            linux
-                .psi
-                .as_ref()
-                .and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10))
-                .unwrap_or(0.0),
-            linux
-                .psi
-                .as_ref()
-                .and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10))
-                .unwrap_or(0.0),
-            linux
-                .cgroup
-                .as_ref()
-                .map(|c| c.memory_usage_pct)
-                .unwrap_or(0.0),
-        )
-    } else {
-        (0.0, 0.0, 0.0, 0.0)
-    };
+    let (psi_cpu, psi_mem, psi_io, cgroup_mem, throttle_pct) =
+        if let Some(linux) = snapshot.linux.as_ref() {
+            (
+                linux
+                    .psi
+                    .as_ref()
+                    .and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10))
+                    .unwrap_or(0.0),
+                linux
+                    .psi
+                    .as_ref()
+                    .and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10))
+                    .unwrap_or(0.0),
+                linux
+                    .psi
+                    .as_ref()
+                    .and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10))
+                    .unwrap_or(0.0),
+                linux
+                    .cgroup
+                    .as_ref()
+                    .map(|c| c.memory_usage_pct)
+                    .unwrap_or(0.0),
+                linux
+                    .cgroup
+                    .as_ref()
+                    .map(|c| {
+                        if c.cpu_nr_periods == 0 {
+                            0.0
+                        } else {
+                            c.cpu_nr_throttled as f64 / c.cpu_nr_periods as f64 * 100.0
+                        }
+                    })
+                    .unwrap_or(0.0),
+            )
+        } else {
+            (0.0, 0.0, 0.0, 0.0, 0.0)
+        };
     let disk_sleep = snapshot
         .processes
         .iter()
         .filter(|proc| proc.state == ProcessState::DiskSleep)
         .count();
+    let hot_pressure_process = snapshot.processes.iter().max_by_key(|proc| proc.threads);
 
     vec![
         Line::from(vec![
@@ -125,6 +138,7 @@ fn pressure_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Lin
                 text(locale, "cgroup mem", "cgroup mem"),
                 cgroup_mem
             )),
+            Span::raw(format!("throttle {:.1}%  ", throttle_pct)),
             Span::styled(
                 format!(
                     "{} {}",
@@ -138,6 +152,15 @@ fn pressure_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Lin
                 },
             ),
         ]),
+        Line::from(format!(
+            "{} {}  {} {}",
+            text(locale, "hot proc", "hot proc"),
+            hot_pressure_process
+                .map(|proc| proc.name.as_str())
+                .unwrap_or("-"),
+            text(locale, "threads", "threads"),
+            hot_pressure_process.map(|proc| proc.threads).unwrap_or(0),
+        )),
     ]
 }
 
@@ -167,6 +190,12 @@ fn network_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Line
         .iter()
         .max_by_key(|net| net.rx_bytes_sec + net.tx_bytes_sec);
     let state = snapshot.networks.first();
+    let total_pps = snapshot
+        .networks
+        .iter()
+        .map(|net| net.rx_packets_sec + net.tx_packets_sec)
+        .sum::<u64>();
+    let top_retrans = snapshot.networks.iter().max_by_key(|net| net.retrans_segs);
 
     vec![
         Line::from(vec![
@@ -198,6 +227,14 @@ fn network_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Line
             state.map(|net| net.tcp_time_wait).unwrap_or(0),
             state.map(|net| net.retrans_segs).unwrap_or(0),
         )),
+        Line::from(format!(
+            "pps {}  {} {}  syn {}/{}",
+            total_pps,
+            text(locale, "top retrans", "top retrans"),
+            top_retrans.map(|net| net.interface.as_str()).unwrap_or("-"),
+            state.map(|net| net.tcp_syn_sent).unwrap_or(0),
+            state.map(|net| net.tcp_syn_recv).unwrap_or(0),
+        )),
     ]
 }
 
@@ -209,12 +246,18 @@ fn jvm_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Line<'st
         .collect();
     let total_threads = jvms.iter().map(|proc| proc.threads).sum::<u32>();
     let total_fds = jvms.iter().map(|proc| proc.fd_count).sum::<u32>();
+    let total_io_mb = jvms
+        .iter()
+        .map(|proc| proc.io_read_bytes + proc.io_write_bytes)
+        .sum::<u64>() as f64
+        / (1024.0 * 1024.0);
     let top_cpu = jvms.iter().max_by(|a, b| {
         a.cpu_pct
             .partial_cmp(&b.cpu_pct)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     let top_mem = jvms.iter().max_by_key(|proc| proc.mem_rss_kb);
+    let most_threads = jvms.iter().max_by_key(|proc| proc.threads);
 
     vec![
         Line::from(vec![
@@ -244,6 +287,14 @@ fn jvm_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<Line<'st
                 .map(|proc| proc.mem_rss_kb as f64 / 1024.0)
                 .unwrap_or(0.0),
         )),
+        Line::from(format!(
+            "{} {}  io {:.1} MB  {} {}",
+            text(locale, "top threads", "top threads"),
+            most_threads.map(|proc| proc.name.as_str()).unwrap_or("-"),
+            total_io_mb,
+            text(locale, "count", "count"),
+            most_threads.map(|proc| proc.threads).unwrap_or(0),
+        )),
     ]
 }
 
@@ -267,6 +318,10 @@ fn disk_pressure_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Ve
         .processes
         .iter()
         .max_by_key(|proc| proc.io_write_bytes);
+    let top_reader = snapshot
+        .processes
+        .iter()
+        .max_by_key(|proc| proc.io_read_bytes);
 
     vec![
         Line::from(vec![
@@ -295,6 +350,12 @@ fn disk_pressure_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Ve
             disk_sleep,
             text(locale, "top writer", "top writer"),
             top_writer.map(|proc| proc.name.as_str()).unwrap_or("-"),
+        )),
+        Line::from(format!(
+            "{} {}  svc {:.1}ms",
+            text(locale, "top reader", "top reader"),
+            top_reader.map(|proc| proc.name.as_str()).unwrap_or("-"),
+            hottest_disk.map(|disk| disk.service_time_ms).unwrap_or(0.0),
         )),
     ]
 }

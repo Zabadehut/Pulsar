@@ -271,7 +271,7 @@ impl Dashboard {
         let monitoring_area = if self.specialist_view != SpecialistView::None {
             let rows = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(5), Constraint::Min(0)])
+                .constraints([Constraint::Length(6), Constraint::Min(0)])
                 .split(area);
             analysis_widget::render(
                 frame,

@@ -80,7 +80,7 @@ What is not finished yet:
 
 Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
 Built-in recording rotation, retention, and closed-segment `zip` compression are now in the CLI. The standalone archive command is still planned and documented in [`docs/help.md`](docs/help.md).
-The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `1` to `6` for operator presets, `7` to `0` for expert local diagnostics, `v` for detail density, and `i` to switch `fr`/`en`.
+The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `1` to `6` for operator presets, `7` to `0` for expert local diagnostics, `v` for detail density, and `i` to switch `fr`/`en`. The index follows the active language and specialist view context.
 
 ```bash
 # Interactive TUI
