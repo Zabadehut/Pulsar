@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUT_DIR="${1:-$ROOT_DIR/docs/screenshots}"
+TMP_DIR="${TMPDIR:-/tmp}/pulsar-capture"
+
+mkdir -p "$OUT_DIR" "$TMP_DIR"
+
+capture_frame() {
+  local name="$1"
+  shift
+  python3 "$ROOT_DIR/scripts/capture_tui_frame.py" \
+    --output "$TMP_DIR/$name.typescript" \
+    --rows 40 \
+    --cols 140 \
+    "$@"
+}
+
+render_frame() {
+  local name="$1"
+  local title="$2"
+  python3 "$ROOT_DIR/scripts/render_terminal_capture.py" \
+    --input "$TMP_DIR/$name.typescript" \
+    --output "$OUT_DIR/$name.svg" \
+    --rows 40 \
+    --cols 140 \
+    --title "$title"
+}
+
+capture_frame "tui-overview-real" -- target/debug/pulsar --log-level error
+render_frame "tui-overview-real" "Pulsar TUI overview"
+
+capture_frame "tui-expert-network-real" --keys "8" --keys "q" -- target/debug/pulsar --log-level error
+render_frame "tui-expert-network-real" "Pulsar expert network view"
+
+echo "Generated:"
+echo "  $OUT_DIR/tui-overview-real.svg"
+echo "  $OUT_DIR/tui-expert-network-real.svg"

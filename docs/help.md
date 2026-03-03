@@ -43,7 +43,8 @@ Index behavior:
 - the expert drill-down body now stays aligned with the same localized terms as the index
 - `pressure+` exposes pressure paths and pressured processes
 - `network+` exposes interface ranking and socket/TCP state breakdown
-- `jvm+` exposes JVM hotspots and runtime/thread orientation
+- `network+` also exposes session lenses (`handshake`, `closing backlog`, `loss path`)
+- `jvm+` exposes JVM hotspots plus runtime profiles (`role`, dominant pressure, heap hint)
 - `disk+` exposes hot disks plus waiters/IO correlation
 
 Product boundary reminder:

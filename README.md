@@ -88,11 +88,17 @@ The TUI now exposes a technical reference pane with `/` for search, `?` for the 
 
 Overview TUI:
 
-![Pulsar TUI overview](docs/screenshots/tui-overview.svg)
+![Pulsar TUI overview](docs/screenshots/tui-overview-real.svg)
 
 Expert network view:
 
-![Pulsar expert network diagnostics](docs/screenshots/tui-expert-network.svg)
+![Pulsar expert network diagnostics](docs/screenshots/tui-expert-network-real.svg)
+
+These captures are generated from real terminal frames with:
+
+```bash
+bash scripts/capture-tui-screens.sh docs/screenshots
+```
 
 ```bash
 # Interactive TUI

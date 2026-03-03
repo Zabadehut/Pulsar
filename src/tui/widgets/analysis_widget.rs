@@ -300,7 +300,11 @@ fn render_network_drilldown(
     let right_rows = if detailed {
         Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(58), Constraint::Percentage(42)])
+            .constraints([
+                Constraint::Percentage(44),
+                Constraint::Percentage(28),
+                Constraint::Percentage(28),
+            ])
             .split(cols[1])
     } else {
         Layout::default()
@@ -310,13 +314,24 @@ fn render_network_drilldown(
     };
 
     render_socket_state_table(frame, right_rows[0], snapshot, locale, theme);
-    render_focus_notes(
-        frame,
-        right_rows[1],
-        text(locale, " ◉ ANALYSE LIEN ", " ◉ LINK ANALYSIS "),
-        network_focus_lines(snapshot, locale, theme),
-        theme,
-    );
+    if detailed {
+        render_network_lens_table(frame, right_rows[1], snapshot, locale, theme);
+        render_focus_notes(
+            frame,
+            right_rows[2],
+            text(locale, " ◉ ANALYSE LIEN ", " ◉ LINK ANALYSIS "),
+            network_focus_lines(snapshot, locale, theme),
+            theme,
+        );
+    } else {
+        render_focus_notes(
+            frame,
+            right_rows[1],
+            text(locale, " ◉ ANALYSE LIEN ", " ◉ LINK ANALYSIS "),
+            network_focus_lines(snapshot, locale, theme),
+            theme,
+        );
+    }
 }
 
 fn render_jvm_drilldown(
@@ -337,7 +352,11 @@ fn render_jvm_drilldown(
     let right_rows = if detailed {
         Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+            .constraints([
+                Constraint::Percentage(36),
+                Constraint::Percentage(34),
+                Constraint::Percentage(30),
+            ])
             .split(cols[1])
     } else {
         Layout::default()
@@ -347,13 +366,24 @@ fn render_jvm_drilldown(
     };
 
     render_jvm_hotspots(frame, right_rows[0], snapshot, locale, theme);
-    render_focus_notes(
-        frame,
-        right_rows[1],
-        text(locale, " ◉ THREAD / RUNTIME ", " ◉ THREAD / RUNTIME "),
-        jvm_focus_lines(snapshot, locale, theme),
-        theme,
-    );
+    if detailed {
+        render_jvm_profile_table(frame, right_rows[1], snapshot, locale, theme);
+        render_focus_notes(
+            frame,
+            right_rows[2],
+            text(locale, " ◉ THREAD / RUNTIME ", " ◉ THREAD / RUNTIME "),
+            jvm_focus_lines(snapshot, locale, theme),
+            theme,
+        );
+    } else {
+        render_focus_notes(
+            frame,
+            right_rows[1],
+            text(locale, " ◉ THREAD / RUNTIME ", " ◉ THREAD / RUNTIME "),
+            jvm_focus_lines(snapshot, locale, theme),
+            theme,
+        );
+    }
 }
 
 fn render_disk_drilldown(
@@ -614,6 +644,93 @@ fn render_socket_state_table(
     frame.render_widget(table, area);
 }
 
+fn render_network_lens_table(
+    frame: &mut Frame,
+    area: Rect,
+    snapshot: &Snapshot,
+    locale: Locale,
+    theme: &Theme,
+) {
+    let state = snapshot.networks.first();
+    let (handshake, closing, listeners, active_ratio, udp_mix, loss_path) = if let Some(net) = state
+    {
+        let closing = net.tcp_fin_wait1
+            + net.tcp_fin_wait2
+            + net.tcp_close
+            + net.tcp_close_wait
+            + net.tcp_last_ack
+            + net.tcp_closing
+            + net.tcp_time_wait;
+        let total_tcpish = (net.connections_total.max(1)) as f64;
+        (
+            net.tcp_syn_sent + net.tcp_syn_recv,
+            closing,
+            net.tcp_listen + net.udp_total,
+            net.connections_established as f64 / total_tcpish * 100.0,
+            if net.connections_total == 0 {
+                0.0
+            } else {
+                net.udp_total as f64 / net.connections_total as f64 * 100.0
+            },
+            net.retrans_segs
+                + snapshot
+                    .networks
+                    .iter()
+                    .map(|entry| {
+                        entry.rx_errors + entry.tx_errors + entry.rx_dropped + entry.tx_dropped
+                    })
+                    .sum::<u64>(),
+        )
+    } else {
+        (0, 0, 0, 0.0, 0.0, 0)
+    };
+
+    let rows = vec![
+        key_value_row(
+            text(locale, "Handshake pressure", "Handshake pressure"),
+            handshake.to_string(),
+            severity_style(handshake as f64, 20.0, 5.0, theme),
+        ),
+        key_value_row(
+            text(locale, "Closing backlog", "Closing backlog"),
+            closing.to_string(),
+            severity_style(closing as f64, 50.0, 10.0, theme),
+        ),
+        key_value_row(
+            text(locale, "Listener surface", "Listener surface"),
+            listeners.to_string(),
+            body_style(theme),
+        ),
+        key_value_row(
+            text(locale, "Active ratio", "Active ratio"),
+            format!("{active_ratio:.0}%"),
+            body_style(theme),
+        ),
+        key_value_row(
+            text(locale, "UDP mix", "UDP mix"),
+            format!("{udp_mix:.0}%"),
+            body_style(theme),
+        ),
+        key_value_row(
+            text(locale, "Loss path score", "Loss path score"),
+            loss_path.to_string(),
+            severity_style(loss_path as f64, 200.0, 20.0, theme),
+        ),
+    ];
+
+    let table = metric_table(
+        text(locale, " ◉ SESSION LENSES ", " ◉ SESSION LENSES "),
+        vec![
+            Cell::from(text(locale, "Signal", "Signal")),
+            Cell::from(text(locale, "Valeur", "Value")),
+        ],
+        rows,
+        [Constraint::Percentage(58), Constraint::Percentage(42)],
+        theme,
+    );
+    frame.render_widget(table, area);
+}
+
 fn render_jvm_table(
     frame: &mut Frame,
     area: Rect,
@@ -771,6 +888,58 @@ fn render_jvm_hotspots(
         ],
         rows,
         [Constraint::Percentage(52), Constraint::Percentage(48)],
+        theme,
+    );
+    frame.render_widget(table, area);
+}
+
+fn render_jvm_profile_table(
+    frame: &mut Frame,
+    area: Rect,
+    snapshot: &Snapshot,
+    locale: Locale,
+    theme: &Theme,
+) {
+    let mut jvms: Vec<&ProcessMetrics> = snapshot
+        .processes
+        .iter()
+        .filter(|proc| proc.is_jvm)
+        .collect();
+    jvms.sort_by(|a, b| {
+        b.cpu_pct
+            .partial_cmp(&a.cpu_pct)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| b.mem_rss_kb.cmp(&a.mem_rss_kb))
+    });
+
+    let rows = jvms
+        .into_iter()
+        .take(4)
+        .map(|proc| {
+            Row::new(vec![
+                Cell::from(truncate(&proc.name, 10)),
+                Cell::from(jvm_role(proc, locale)),
+                Cell::from(jvm_dominant_pressure(proc, locale)),
+                Cell::from(jvm_heap_hint(proc)),
+            ])
+        })
+        .collect::<Vec<_>>();
+
+    let table = metric_table(
+        text(locale, " ◉ PROFILS JVM ", " ◉ JVM PROFILES "),
+        vec![
+            Cell::from(text(locale, "Nom", "Name")),
+            Cell::from(text(locale, "Role", "Role")),
+            Cell::from(text(locale, "Pression", "Pressure")),
+            Cell::from(text(locale, "Heap", "Heap")),
+        ],
+        rows,
+        [
+            Constraint::Percentage(26),
+            Constraint::Percentage(26),
+            Constraint::Percentage(28),
+            Constraint::Percentage(20),
+        ],
         theme,
     );
     frame.render_widget(table, area);
@@ -1527,4 +1696,54 @@ fn kb_to_gb(value_kb: u64) -> f64 {
 
 fn truncate(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars).collect()
+}
+
+fn jvm_role(proc: &ProcessMetrics, locale: Locale) -> &'static str {
+    let cmd = proc.cmdline.to_ascii_lowercase();
+    if cmd.contains("spring") || cmd.contains("boot") {
+        text(locale, "service", "service")
+    } else if cmd.contains("kafka") {
+        "kafka"
+    } else if cmd.contains("tomcat") || cmd.contains("jetty") {
+        "web"
+    } else if cmd.contains(".jar") {
+        "jar"
+    } else if cmd.contains("gradle") || cmd.contains("maven") {
+        text(locale, "build", "build")
+    } else {
+        text(locale, "jvm", "jvm")
+    }
+}
+
+fn jvm_dominant_pressure(proc: &ProcessMetrics, locale: Locale) -> &'static str {
+    let io_mb = (proc.io_read_bytes + proc.io_write_bytes) as f64 / (1024.0 * 1024.0);
+    let mut dominant = ("cpu", proc.cpu_pct);
+    for candidate in [
+        ("rss", proc.mem_rss_kb as f64 / 1024.0),
+        ("threads", proc.threads as f64),
+        ("fds", proc.fd_count as f64),
+        ("io", io_mb),
+    ] {
+        if candidate.1 > dominant.1 {
+            dominant = candidate;
+        }
+    }
+    match dominant.0 {
+        "rss" => text(locale, "memoire", "memory"),
+        "threads" => text(locale, "threads", "threads"),
+        "fds" => "fds",
+        "io" => "io",
+        _ => "cpu",
+    }
+}
+
+fn jvm_heap_hint(proc: &ProcessMetrics) -> String {
+    extract_cmd_flag(&proc.cmdline, "-Xmx").unwrap_or_else(|| "-".to_string())
+}
+
+fn extract_cmd_flag(cmdline: &str, flag: &str) -> Option<String> {
+    cmdline
+        .split_whitespace()
+        .find(|part| part.starts_with(flag))
+        .map(|part| part.to_string())
 }
