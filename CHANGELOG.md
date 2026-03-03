@@ -11,11 +11,14 @@ The format is inspired by Keep a Changelog, and this project aims to follow Sema
 - Real terminal-derived README screenshots for `overview`, `pressure+`, `network+`, `jvm+`, and `disk+`
 - Cross-OS disk identity hints for structure, protocol, and media
 - Deeper disk readability in standard and expert TUI views
+- Cross-OS disk inventory collection with parent/child topology, filesystem, stable refs, model, serial, transport, and mount metadata
+- Richer `/inventory` payloads for disk topology consumers and operators
 
 ### Changed
 
 - Project version advanced to `0.4.0`
 - The TUI footer now reads the package version directly from Cargo metadata
+- `disk+` and detailed disk tables now surface filesystem, parentage, and stable-ref cues closer to an `lsblk`-style reading
 
 ## [0.4.0] - 2026-03-03
 

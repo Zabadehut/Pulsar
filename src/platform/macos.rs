@@ -1,6 +1,6 @@
 use crate::platform::api::{
-    RawCpuReading, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo, RawNetConnections,
-    RawNetStat, RawProcReading, RawSystemInfo,
+    RawCpuReading, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo,
+    RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
 };
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -62,6 +62,68 @@ pub fn read_disks() -> Result<Vec<RawDiskStat>> {
         })
         .collect();
     Ok(disks)
+}
+
+pub fn read_disk_inventory() -> Result<Vec<RawDiskInventory>> {
+    let identifiers = disk_identifiers();
+    let mut inventory = Vec::new();
+
+    for identifier in identifiers {
+        let info = command_output("diskutil", &["info", &identifier]).unwrap_or_default();
+        let parent =
+            parse_diskutil_field(&info, "Part of Whole").or_else(|| parent_identifier(&identifier));
+        let mount_point = parse_diskutil_field(&info, "Mount Point").unwrap_or_default();
+        let filesystem = parse_diskutil_field(&info, "File System Personality")
+            .or_else(|| parse_diskutil_field(&info, "Type (Bundle)"))
+            .unwrap_or_default();
+        let label = parse_diskutil_field(&info, "Volume Name").unwrap_or_default();
+        let uuid = parse_diskutil_field(&info, "Volume UUID")
+            .or_else(|| parse_diskutil_field(&info, "Disk / Partition UUID"))
+            .unwrap_or_default();
+        let part_uuid = parse_diskutil_field(&info, "Disk / Partition UUID").unwrap_or_default();
+        let model = parse_diskutil_field(&info, "Device / Media Name").unwrap_or_default();
+        let serial = parse_diskutil_field(&info, "Disk / Partition UUID").unwrap_or_default();
+        let transport = parse_diskutil_field(&info, "Protocol").unwrap_or_default();
+        let reference =
+            parse_diskutil_field(&info, "Device Identifier").unwrap_or_else(|| identifier.clone());
+        let structure = if identifier.contains('s') {
+            "partition".to_string()
+        } else if info.contains("APFS Container") {
+            "apfs-container".to_string()
+        } else {
+            "whole-disk".to_string()
+        };
+
+        inventory.push(RawDiskInventory {
+            device: identifier,
+            parent,
+            structure,
+            filesystem,
+            label,
+            uuid,
+            part_uuid,
+            model,
+            serial,
+            transport,
+            reference,
+            mount_points: if mount_point.is_empty() {
+                Vec::new()
+            } else {
+                vec![mount_point]
+            },
+            children: Vec::new(),
+        });
+    }
+
+    let children_by_parent = build_children_map(&inventory);
+    for item in &mut inventory {
+        item.children = children_by_parent
+            .get(&item.device)
+            .cloned()
+            .unwrap_or_default();
+    }
+
+    Ok(inventory)
 }
 
 pub fn read_net_connections() -> RawNetConnections {
@@ -331,6 +393,59 @@ pub fn read_linux_metrics() -> Result<RawLinuxMetrics> {
 struct DiskRow {
     device: String,
     mount_point: String,
+}
+
+fn disk_identifiers() -> Vec<String> {
+    let output = match command_output("diskutil", &["list"]) {
+        Some(output) => output,
+        None => return Vec::new(),
+    };
+
+    output
+        .lines()
+        .filter_map(|line| line.split_whitespace().last())
+        .filter(|token| token.starts_with("disk"))
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn parse_diskutil_field(output: &str, key: &str) -> Option<String> {
+    output.lines().find_map(|line| {
+        let trimmed = line.trim();
+        let (field, value) = trimmed.split_once(':')?;
+        if field.trim() == key {
+            let value = value.trim();
+            if value.is_empty() || value == "Not applicable (no file system)" {
+                None
+            } else {
+                Some(value.to_string())
+            }
+        } else {
+            None
+        }
+    })
+}
+
+fn parent_identifier(identifier: &str) -> Option<String> {
+    identifier.rsplit_once('s').and_then(|(base, suffix)| {
+        if suffix.chars().all(|c| c.is_ascii_digit()) {
+            Some(base.to_string())
+        } else {
+            None
+        }
+    })
+}
+
+fn build_children_map(items: &[RawDiskInventory]) -> HashMap<String, Vec<String>> {
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    for item in items {
+        if let Some(parent) = &item.parent {
+            map.entry(parent.clone())
+                .or_default()
+                .push(item.device.clone());
+        }
+    }
+    map
 }
 
 fn command_output(program: &str, args: &[&str]) -> Option<String> {

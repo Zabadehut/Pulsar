@@ -55,6 +55,9 @@ Index behavior:
 - `disk+` exposes hot disks plus waiters/IO correlation
 - `disk+` also exposes contention lenses (`busy`, `latency`, `queue`, waiter pressure`)
 - the standard disk views now expose `structure`, `proto`, and `media` hints to make cross-OS storage paths easier to read
+- disk inventory is moving toward an `lsblk`-like model with `parent`, `filesystem`, `uuid`, `label`, `model`, `serial`, `refs`, `mounts`, and `children`
+- `disk+` now also surfaces stack and stable-ref cues for the hottest path so UUID/ref/parentage stay visible in the TUI
+- `/inventory` now returns richer host, disk, and network inventory details for API consumers
 
 Product boundary reminder:
 

@@ -1,12 +1,14 @@
 use crate::platform::api::{
-    RawCgroupMetrics, RawCpuReading, RawCpuStat, RawDiskSpace, RawDiskStat, RawLinuxMetrics,
-    RawMemoryInfo, RawNetConnections, RawNetStat, RawPressureMetric, RawPressureWindow,
-    RawProcReading, RawPsiMetrics, RawSystemInfo,
+    RawCgroupMetrics, RawCpuReading, RawCpuStat, RawDiskInventory, RawDiskSpace, RawDiskStat,
+    RawLinuxMetrics, RawMemoryInfo, RawNetConnections, RawNetStat, RawPressureMetric,
+    RawPressureWindow, RawProcReading, RawPsiMetrics, RawSystemInfo,
 };
 use anyhow::Result;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 // ─── CPU ─────────────────────────────────────────────────────────────────────
 
@@ -189,6 +191,31 @@ pub fn read_disks() -> Result<Vec<RawDiskStat>> {
     Ok(results)
 }
 
+pub fn read_disk_inventory() -> Result<Vec<RawDiskInventory>> {
+    let Some(output) = command_output(
+        "lsblk",
+        &[
+            "-J",
+            "-o",
+            "NAME,KNAME,PKNAME,TYPE,FSTYPE,LABEL,UUID,PARTUUID,MOUNTPOINTS,MODEL,SERIAL,TRAN,WWN",
+        ],
+    ) else {
+        return Ok(Vec::new());
+    };
+
+    let value: Value = serde_json::from_str(&output)?;
+    let mut inventory = Vec::new();
+    for device in value
+        .get("blockdevices")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        flatten_lsblk_node(device, &mut inventory);
+    }
+    Ok(inventory)
+}
+
 // ─── Network ──────────────────────────────────────────────────────────────────
 
 pub fn read_net_connections() -> RawNetConnections {
@@ -259,6 +286,87 @@ pub fn read_network() -> Result<Vec<RawNetStat>> {
         });
     }
     Ok(results)
+}
+
+fn command_output(program: &str, args: &[&str]) -> Option<String> {
+    let output = Command::new(program).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn flatten_lsblk_node(node: &Value, out: &mut Vec<RawDiskInventory>) {
+    let device = json_string(node, "kname")
+        .or_else(|| json_string(node, "name"))
+        .unwrap_or_default();
+    if device.is_empty() {
+        return;
+    }
+
+    let children = node
+        .get("children")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| json_string(item, "kname").or_else(|| json_string(item, "name")))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    out.push(RawDiskInventory {
+        device,
+        parent: json_string(node, "pkname"),
+        structure: json_string(node, "type").unwrap_or_default(),
+        filesystem: json_string(node, "fstype").unwrap_or_default(),
+        label: json_string(node, "label").unwrap_or_default(),
+        uuid: json_string(node, "uuid").unwrap_or_default(),
+        part_uuid: json_string(node, "partuuid").unwrap_or_default(),
+        model: json_string(node, "model").unwrap_or_default(),
+        serial: json_string(node, "serial").unwrap_or_default(),
+        transport: json_string(node, "tran").unwrap_or_default(),
+        reference: json_string(node, "wwn").unwrap_or_default(),
+        mount_points: json_string_list(node, "mountpoints"),
+        children,
+    });
+
+    for child in node
+        .get("children")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        flatten_lsblk_node(child, out);
+    }
+}
+
+fn json_string(node: &Value, field: &str) -> Option<String> {
+    match node.get(field) {
+        Some(Value::String(value)) if !value.is_empty() => Some(value.to_string()),
+        Some(Value::Number(value)) => Some(value.to_string()),
+        _ => None,
+    }
+}
+
+fn json_string_list(node: &Value, field: &str) -> Vec<String> {
+    node.get(field)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str())
+                .filter(|value| !value.is_empty() && *value != "[SWAP]")
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 // ─── Memory ───────────────────────────────────────────────────────────────────

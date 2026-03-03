@@ -1,6 +1,6 @@
 use crate::platform::api::{
-    RawCpuReading, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo, RawNetConnections,
-    RawNetStat, RawProcReading, RawSystemInfo,
+    RawCpuReading, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo,
+    RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
 };
 use anyhow::Result;
 use serde_json::Value;
@@ -74,6 +74,84 @@ pub fn read_disks() -> Result<Vec<RawDiskStat>> {
             ..RawDiskStat::default()
         })
         .collect())
+}
+
+pub fn read_disk_inventory() -> Result<Vec<RawDiskInventory>> {
+    let values = powershell_json(
+        "$volByLetter = @{}; \
+         Get-Volume | ForEach-Object { if ($_.DriveLetter) { $volByLetter[[string]$_.DriveLetter] = $_ } }; \
+         $parts = Get-Partition | Sort-Object DiskNumber, PartitionNumber; \
+         $out = foreach ($part in $parts) { \
+           $letter = if ($part.DriveLetter) { [string]$part.DriveLetter } else { $null }; \
+           $vol = if ($letter -and $volByLetter.ContainsKey($letter)) { $volByLetter[$letter] } else { $null }; \
+           $disk = Get-Disk -Number $part.DiskNumber -ErrorAction SilentlyContinue; \
+           [pscustomobject]@{ \
+             Device = if ($letter) { '{0}:' -f $letter } else { 'disk{0}-part{1}' -f $part.DiskNumber, $part.PartitionNumber }; \
+             Parent = if ($disk) { 'disk{0}' -f $disk.Number } else { $null }; \
+             Structure = if ($part.Type) { [string]$part.Type } else { 'partition' }; \
+             FileSystem = if ($vol) { [string]$vol.FileSystem } else { $null }; \
+             Label = if ($vol) { [string]$vol.FileSystemLabel } else { $null }; \
+             Uuid = if ($vol) { [string]$vol.UniqueId } else { $null }; \
+             PartUuid = if ($part.Guid) { [string]$part.Guid } else { $null }; \
+             Model = if ($disk) { [string]$disk.FriendlyName } else { $null }; \
+             Serial = if ($disk) { [string]$disk.SerialNumber } else { $null }; \
+             Transport = if ($disk) { [string]$disk.BusType } else { $null }; \
+             Reference = if ($disk -and $disk.UniqueId) { [string]$disk.UniqueId } elseif ($vol -and $vol.Path) { [string]$vol.Path } else { $null }; \
+             MountPoints = @($part.AccessPaths); \
+           } \
+         }; \
+         $out | ConvertTo-Json -Compress",
+    )
+    .map(json_values)
+    .unwrap_or_default();
+
+    let mut inventory = Vec::new();
+    for value in values {
+        let mount_points = value
+            .get("MountPoints")
+            .map(|item| match item {
+                Value::Array(items) => items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .filter(|entry| !entry.is_empty())
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>(),
+                Value::String(single) if !single.is_empty() => vec![single.to_string()],
+                _ => Vec::new(),
+            })
+            .unwrap_or_default();
+
+        inventory.push(RawDiskInventory {
+            device: json_field_string(&value, "Device").unwrap_or_default(),
+            parent: json_field_string(&value, "Parent"),
+            structure: json_field_string(&value, "Structure").unwrap_or_default(),
+            filesystem: json_field_string(&value, "FileSystem").unwrap_or_default(),
+            label: json_field_string(&value, "Label").unwrap_or_default(),
+            uuid: json_field_string(&value, "Uuid").unwrap_or_default(),
+            part_uuid: json_field_string(&value, "PartUuid").unwrap_or_default(),
+            model: json_field_string(&value, "Model").unwrap_or_default(),
+            serial: json_field_string(&value, "Serial").unwrap_or_default(),
+            transport: json_field_string(&value, "Transport").unwrap_or_default(),
+            reference: json_field_string(&value, "Reference").unwrap_or_default(),
+            mount_points,
+            children: Vec::new(),
+        });
+    }
+
+    let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
+    for item in &inventory {
+        if let Some(parent) = &item.parent {
+            children_map
+                .entry(parent.clone())
+                .or_default()
+                .push(item.device.clone());
+        }
+    }
+    for item in &mut inventory {
+        item.children = children_map.get(&item.device).cloned().unwrap_or_default();
+    }
+
+    Ok(inventory)
 }
 
 pub fn read_net_connections() -> RawNetConnections {

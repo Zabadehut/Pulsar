@@ -1101,6 +1101,8 @@ fn render_disk_table(
                 Cell::from(truncate(&disk.structure_hint, 10)),
                 Cell::from(truncate(&disk.protocol_hint, 10)),
                 Cell::from(truncate(&disk.media_hint, 8)),
+                Cell::from(truncate(&disk.filesystem, 8)),
+                Cell::from(truncate(&disk.parent, 10)),
                 Cell::from(truncate(&disk.mount_point, 10)),
                 Cell::from(format!("{:.1}", disk.util_pct)),
                 Cell::from(format!("{:.1}", disk.await_ms)),
@@ -1122,6 +1124,8 @@ fn render_disk_table(
         Constraint::Length(11),
         Constraint::Length(11),
         Constraint::Length(9),
+        Constraint::Length(9),
+        Constraint::Length(11),
         Constraint::Length(11),
         Constraint::Length(7),
         Constraint::Length(7),
@@ -1133,6 +1137,8 @@ fn render_disk_table(
         Cell::from(text(locale, "Struct", "Struct")),
         Cell::from(text(locale, "Proto", "Proto")),
         Cell::from(text(locale, "Media", "Media")),
+        Cell::from(text(locale, "FS", "FS")),
+        Cell::from(text(locale, "Parent", "Parent")),
         Cell::from(text(locale, "Mount", "Mount")),
         Cell::from("Util"),
         Cell::from("Await"),
@@ -1816,6 +1822,41 @@ fn disk_focus_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<L
         .iter()
         .filter(|proc| proc.state == ProcessState::DiskSleep)
         .count();
+    let mount_summary = hottest_disk
+        .map(|disk| {
+            if !disk.mount_points.is_empty() {
+                disk.mount_points.join(",")
+            } else if !disk.mount_point.is_empty() {
+                disk.mount_point.clone()
+            } else {
+                "-".to_string()
+            }
+        })
+        .unwrap_or_else(|| "-".to_string());
+    let child_summary = hottest_disk
+        .map(|disk| {
+            if disk.children.is_empty() {
+                "-".to_string()
+            } else {
+                disk.children.join(",")
+            }
+        })
+        .unwrap_or_else(|| "-".to_string());
+    let ref_summary = hottest_disk
+        .map(|disk| {
+            if !disk.uuid.is_empty() {
+                disk.uuid.clone()
+            } else if !disk.part_uuid.is_empty() {
+                disk.part_uuid.clone()
+            } else if !disk.reference.is_empty() {
+                disk.reference.clone()
+            } else if !disk.serial.is_empty() {
+                disk.serial.clone()
+            } else {
+                "-".to_string()
+            }
+        })
+        .unwrap_or_else(|| "-".to_string());
 
     vec![
         Line::from(vec![
@@ -1834,6 +1875,44 @@ fn disk_focus_lines(snapshot: &Snapshot, locale: Locale, theme: &Theme) -> Vec<L
                     })
                     .unwrap_or_else(|| "-".to_string()),
             ),
+        ]),
+        Line::from(vec![
+            Span::styled(text(locale, "stack:", "stack:"), theme.highlight_style()),
+            Span::raw(" "),
+            Span::raw(
+                hottest_disk
+                    .map(|disk| {
+                        format!(
+                            "{} / {} / {}",
+                            if disk.structure.is_empty() {
+                                &disk.structure_hint
+                            } else {
+                                &disk.structure
+                            },
+                            if disk.filesystem.is_empty() {
+                                "-"
+                            } else {
+                                &disk.filesystem
+                            },
+                            if disk.parent.is_empty() {
+                                "-"
+                            } else {
+                                &disk.parent
+                            }
+                        )
+                    })
+                    .unwrap_or_else(|| "-".to_string()),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(text(locale, "refs:", "refs:"), theme.highlight_style()),
+            Span::raw(" "),
+            Span::raw(format!(
+                "{} | {} | {}",
+                truncate(&ref_summary, 22),
+                truncate(&mount_summary, 18),
+                truncate(&child_summary, 18)
+            )),
         ]),
         Line::from(if d_state > 0 {
             text(

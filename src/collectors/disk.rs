@@ -1,5 +1,8 @@
 use crate::collectors::{async_trait, Collector, Snapshot};
-use crate::platform::{api::RawDiskStat, current};
+use crate::platform::{
+    api::{RawDiskInventory, RawDiskStat},
+    current,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,6 +14,17 @@ pub struct DiskMetrics {
     pub timestamp: i64,
     pub device: String,
     pub mount_point: String,
+    pub mount_points: Vec<String>,
+    pub parent: String,
+    pub structure: String,
+    pub filesystem: String,
+    pub label: String,
+    pub uuid: String,
+    pub part_uuid: String,
+    pub model: String,
+    pub serial: String,
+    pub reference: String,
+    pub children: Vec<String>,
     pub structure_hint: String,
     pub protocol_hint: String,
     pub media_hint: String,
@@ -64,6 +78,11 @@ impl Collector for DiskCollector {
 
 fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
     let disks = current::read_disks()?;
+    let inventory = current::read_disk_inventory().unwrap_or_default();
+    let inventory_map: HashMap<String, RawDiskInventory> = inventory
+        .into_iter()
+        .map(|item| (item.device.clone(), item))
+        .collect();
     let mount_map = current::read_mount_map();
     let now = chrono::Utc::now().timestamp();
     let collected_at = Instant::now();
@@ -115,7 +134,8 @@ fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
         };
 
         let mount_point = mount_map.get(&disk.device).cloned().unwrap_or_default();
-        let identity = classify_disk_identity(&disk.device, &mount_point);
+        let metadata = inventory_map.get(&disk.device);
+        let identity = classify_disk_identity(&disk.device, &mount_point, metadata);
         let space = if mount_point.is_empty() {
             crate::platform::api::RawDiskSpace::default()
         } else {
@@ -127,7 +147,39 @@ fn collect_disks(c: &mut DiskCollector) -> Result<Vec<DiskMetrics>> {
         results.push(DiskMetrics {
             timestamp: now,
             device: disk.device,
-            mount_point,
+            mount_point: primary_mount(metadata, &mount_point),
+            mount_points: metadata
+                .map(|item| item.mount_points.clone())
+                .filter(|mounts| !mounts.is_empty())
+                .unwrap_or_else(|| {
+                    if mount_point.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![mount_point.clone()]
+                    }
+                }),
+            parent: metadata
+                .and_then(|item| item.parent.clone())
+                .unwrap_or_default(),
+            structure: metadata
+                .map(|item| item.structure.clone())
+                .unwrap_or_default(),
+            filesystem: metadata
+                .map(|item| item.filesystem.clone())
+                .unwrap_or_default(),
+            label: metadata.map(|item| item.label.clone()).unwrap_or_default(),
+            uuid: metadata.map(|item| item.uuid.clone()).unwrap_or_default(),
+            part_uuid: metadata
+                .map(|item| item.part_uuid.clone())
+                .unwrap_or_default(),
+            model: metadata.map(|item| item.model.clone()).unwrap_or_default(),
+            serial: metadata.map(|item| item.serial.clone()).unwrap_or_default(),
+            reference: metadata
+                .map(|item| item.reference.clone())
+                .unwrap_or_default(),
+            children: metadata
+                .map(|item| item.children.clone())
+                .unwrap_or_default(),
             structure_hint: identity.structure,
             protocol_hint: identity.protocol,
             media_hint: identity.media,
@@ -159,24 +211,46 @@ struct DiskIdentity {
     media: String,
 }
 
-fn classify_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
+fn classify_disk_identity(
+    device: &str,
+    mount_point: &str,
+    metadata: Option<&RawDiskInventory>,
+) -> DiskIdentity {
     #[cfg(target_os = "linux")]
     {
-        classify_linux_disk_identity(device, mount_point)
+        classify_linux_disk_identity(device, mount_point, metadata)
     }
     #[cfg(target_os = "macos")]
     {
-        classify_macos_disk_identity(device, mount_point)
+        classify_macos_disk_identity(device, mount_point, metadata)
     }
     #[cfg(target_os = "windows")]
     {
-        classify_windows_disk_identity(device, mount_point)
+        classify_windows_disk_identity(device, mount_point, metadata)
     }
 }
 
 #[cfg(target_os = "linux")]
-fn classify_linux_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
-    let structure = if device.starts_with("nvme") {
+fn classify_linux_disk_identity(
+    device: &str,
+    mount_point: &str,
+    metadata: Option<&RawDiskInventory>,
+) -> DiskIdentity {
+    let structure = if let Some(item) = metadata {
+        if !item.structure.is_empty() {
+            item.structure.as_str()
+        } else if device.starts_with("nvme") {
+            "namespace"
+        } else if device.starts_with("dm-") {
+            "mapper"
+        } else if device.starts_with("md") {
+            "raid"
+        } else if device.starts_with("vd") || device.starts_with("xvd") {
+            "virtual-disk"
+        } else {
+            "block-disk"
+        }
+    } else if device.starts_with("nvme") {
         "namespace"
     } else if device.starts_with("dm-") {
         "mapper"
@@ -188,7 +262,25 @@ fn classify_linux_disk_identity(device: &str, mount_point: &str) -> DiskIdentity
         "block-disk"
     };
 
-    let protocol = if device.starts_with("nvme") {
+    let protocol = if let Some(item) = metadata {
+        if !item.transport.is_empty() {
+            item.transport.as_str()
+        } else if device.starts_with("nvme") {
+            "nvme"
+        } else if device.starts_with("vd") {
+            "virtio"
+        } else if device.starts_with("xvd") {
+            "xen"
+        } else if device.starts_with("dm-") {
+            "device-mapper"
+        } else if device.starts_with("md") {
+            "mdraid"
+        } else if device.starts_with("sd") {
+            "scsi/sata"
+        } else {
+            "block"
+        }
+    } else if device.starts_with("nvme") {
         "nvme"
     } else if device.starts_with("vd") {
         "virtio"
@@ -226,13 +318,33 @@ fn classify_linux_disk_identity(device: &str, mount_point: &str) -> DiskIdentity
 }
 
 #[cfg(target_os = "macos")]
-fn classify_macos_disk_identity(device: &str, mount_point: &str) -> DiskIdentity {
-    let structure = if device.contains('s') {
+fn classify_macos_disk_identity(
+    device: &str,
+    mount_point: &str,
+    metadata: Option<&RawDiskInventory>,
+) -> DiskIdentity {
+    let structure = if let Some(item) = metadata {
+        if !item.structure.is_empty() {
+            item.structure.as_str()
+        } else if device.contains('s') {
+            "partition"
+        } else {
+            "whole-disk"
+        }
+    } else if device.contains('s') {
         "apfs-slice"
     } else {
         "darwin-disk"
     };
-    let protocol = if device.starts_with("disk") {
+    let protocol = if let Some(item) = metadata {
+        if !item.transport.is_empty() {
+            item.transport.as_str()
+        } else if device.starts_with("disk") {
+            "darwin-block"
+        } else {
+            "block"
+        }
+    } else if device.starts_with("disk") {
         "darwin-block"
     } else {
         "block"
@@ -251,8 +363,20 @@ fn classify_macos_disk_identity(device: &str, mount_point: &str) -> DiskIdentity
 }
 
 #[cfg(target_os = "windows")]
-fn classify_windows_disk_identity(device: &str, _mount_point: &str) -> DiskIdentity {
-    let protocol = if device.starts_with("\\\\") {
+fn classify_windows_disk_identity(
+    device: &str,
+    _mount_point: &str,
+    metadata: Option<&RawDiskInventory>,
+) -> DiskIdentity {
+    let protocol = if let Some(item) = metadata {
+        if !item.transport.is_empty() {
+            item.transport.as_str()
+        } else if device.starts_with("\\\\") {
+            "unc"
+        } else {
+            "windows-volume"
+        }
+    } else if device.starts_with("\\\\") {
         "unc"
     } else {
         "windows-volume"
@@ -263,6 +387,13 @@ fn classify_windows_disk_identity(device: &str, _mount_point: &str) -> DiskIdent
         protocol: protocol.to_string(),
         media: "unknown".to_string(),
     }
+}
+
+fn primary_mount(metadata: Option<&RawDiskInventory>, fallback: &str) -> String {
+    metadata
+        .and_then(|item| item.mount_points.first().cloned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| fallback.to_string())
 }
 
 fn per_second_u64(delta: u64, elapsed_secs: f64) -> u64 {

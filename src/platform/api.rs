@@ -59,6 +59,23 @@ pub struct RawDiskStat {
     pub weighted_io_time_ms: u64,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct RawDiskInventory {
+    pub device: String,
+    pub parent: Option<String>,
+    pub structure: String,
+    pub filesystem: String,
+    pub label: String,
+    pub uuid: String,
+    pub part_uuid: String,
+    pub model: String,
+    pub serial: String,
+    pub transport: String,
+    pub reference: String,
+    pub mount_points: Vec<String>,
+    pub children: Vec<String>,
+}
+
 /// One network interface reading (counter snapshot, not rate).
 #[derive(Debug, Clone, Default)]
 pub struct RawNetStat {
@@ -209,6 +226,7 @@ pub struct RawProcReading {
 pub trait PlatformCollect {
     fn read_cpu() -> Result<RawCpuReading>;
     fn read_disks() -> Result<Vec<RawDiskStat>>;
+    fn read_disk_inventory() -> Result<Vec<RawDiskInventory>>;
     fn read_network() -> Result<Vec<RawNetStat>>;
     fn read_memory() -> Result<RawMemoryInfo>;
     fn read_system() -> Result<RawSystemInfo>;

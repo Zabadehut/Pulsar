@@ -60,7 +60,8 @@ pub fn render(
         Cell::from("Util%"),
     ];
     if detailed {
-        header_cells.push(Cell::from(text(locale, "Libre GB", "Free GB")));
+        header_cells.push(Cell::from(text(locale, "FS", "FS")));
+        header_cells.push(Cell::from(text(locale, "Parent", "Parent")));
     }
     let header = Row::new(header_cells).style(theme.highlight_style());
 
@@ -83,7 +84,8 @@ pub fn render(
                 Cell::from(format!("{:.1}%", d.util_pct)),
             ];
             if detailed {
-                cells.push(Cell::from(format!("{:.1}", d.free_gb)));
+                cells.push(Cell::from(d.filesystem.chars().take(8).collect::<String>()));
+                cells.push(Cell::from(d.parent.chars().take(10).collect::<String>()));
             }
             Row::new(cells)
         })
@@ -105,7 +107,8 @@ pub fn render(
         ratatui::layout::Constraint::Length(6),
     ];
     if detailed {
-        widths.push(ratatui::layout::Constraint::Length(7));
+        widths.push(ratatui::layout::Constraint::Length(9));
+        widths.push(ratatui::layout::Constraint::Length(11));
     }
 
     let table = Table::new(rows, widths).header(header);
