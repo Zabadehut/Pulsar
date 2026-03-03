@@ -629,6 +629,9 @@ fn render_interface_table(
             let total_pps = net.rx_packets_sec + net.tx_packets_sec;
             let mut cells = vec![
                 Cell::from(truncate(&net.interface, 10)),
+                Cell::from(truncate(&net.topology_hint, 10)),
+                Cell::from(truncate(&net.family_hint, 9)),
+                Cell::from(truncate(&net.medium_hint, 8)),
                 Cell::from((net.rx_bytes_sec / 1024).to_string()),
                 Cell::from((net.tx_bytes_sec / 1024).to_string()),
                 Cell::from(total_pps.to_string()),
@@ -644,6 +647,9 @@ fn render_interface_table(
 
     let mut widths = vec![
         Constraint::Length(11),
+        Constraint::Length(11),
+        Constraint::Length(10),
+        Constraint::Length(9),
         Constraint::Length(9),
         Constraint::Length(9),
         Constraint::Length(8),
@@ -652,6 +658,9 @@ fn render_interface_table(
     ];
     let mut header = vec![
         Cell::from(text(locale, "Iface", "Iface")),
+        Cell::from(text(locale, "Topo", "Topo")),
+        Cell::from(text(locale, "Fam", "Fam")),
+        Cell::from(text(locale, "Media", "Media")),
         Cell::from("RX KB"),
         Cell::from("TX KB"),
         Cell::from("PPS"),

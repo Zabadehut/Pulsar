@@ -315,9 +315,17 @@ impl Exporter for PrometheusExporter {
             out.push_str("# TYPE pulsar_network_udp_state_count gauge\n");
             out.push_str("# HELP pulsar_network_tcp_retrans_segments TCP retransmitted segments\n");
             out.push_str("# TYPE pulsar_network_tcp_retrans_segments gauge\n");
+            out.push_str(
+                "# HELP pulsar_network_interface_info Portable interface classification hints\n",
+            );
+            out.push_str("# TYPE pulsar_network_interface_info gauge\n");
         }
         for net in &snapshot.networks {
-            let lbl = format!(r#"interface="{}""#, net.interface);
+            let lbl = format!(
+                r#"interface="{}",topology="{}",family="{}",medium="{}""#,
+                net.interface, net.topology_hint, net.family_hint, net.medium_hint
+            );
+            out.push_str(&format!("pulsar_network_interface_info{{{}}} 1\n", lbl));
             out.push_str(&format!(
                 "pulsar_network_rx_bytes_sec{{{}}} {}\n",
                 lbl, net.rx_bytes_sec

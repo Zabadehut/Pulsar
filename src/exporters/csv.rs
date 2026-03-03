@@ -196,6 +196,24 @@ impl Exporter for CsvExporter {
         for net in &snapshot.networks {
             let iface = metric_label(&net.interface);
             out.push_str(&format!(
+                "{},net.{}.topology.{},1\n",
+                snapshot.timestamp,
+                iface,
+                metric_label(&net.topology_hint)
+            ));
+            out.push_str(&format!(
+                "{},net.{}.family.{},1\n",
+                snapshot.timestamp,
+                iface,
+                metric_label(&net.family_hint)
+            ));
+            out.push_str(&format!(
+                "{},net.{}.medium.{},1\n",
+                snapshot.timestamp,
+                iface,
+                metric_label(&net.medium_hint)
+            ));
+            out.push_str(&format!(
                 "{},net.{}.rx_bytes_sec,{}\n",
                 snapshot.timestamp, iface, net.rx_bytes_sec
             ));

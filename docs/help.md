@@ -44,6 +44,7 @@ Index behavior:
 - `pressure+` exposes pressure paths and pressured processes
 - `network+` exposes interface ranking and socket/TCP state breakdown
 - `network+` also exposes session lenses (`handshake`, `closing backlog`, `loss path`)
+- the standard and expert network views now expose portable `topology`, `family`, and `medium` hints per interface
 - `jvm+` exposes JVM hotspots plus runtime profiles (`role`, dominant pressure, heap hint)
 - `pressure+` also exposes pressure lenses (`reclaim`, `swap`, `host/cgroup gap`, stall mixes)
 - `disk+` exposes hot disks plus waiters/IO correlation

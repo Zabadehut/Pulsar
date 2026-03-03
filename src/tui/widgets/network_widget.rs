@@ -46,6 +46,9 @@ pub fn render(
 
     let mut header_cells = vec![
         Cell::from(text(locale, "Interface", "Interface")),
+        Cell::from(text(locale, "Topo", "Topo")),
+        Cell::from(text(locale, "Fam", "Fam")),
+        Cell::from(text(locale, "Media", "Media")),
         Cell::from("RX KB/s"),
         Cell::from("TX KB/s"),
         Cell::from("RX pkt/s"),
@@ -65,6 +68,9 @@ pub fn render(
         .map(|n| {
             let mut cells = vec![
                 Cell::from(n.interface.clone()),
+                Cell::from(n.topology_hint.chars().take(10).collect::<String>()),
+                Cell::from(n.family_hint.chars().take(9).collect::<String>()),
+                Cell::from(n.medium_hint.chars().take(8).collect::<String>()),
                 Cell::from(format!("{}", n.rx_bytes_sec / 1024)),
                 Cell::from(format!("{}", n.tx_bytes_sec / 1024)),
                 Cell::from(format!("{}", n.rx_packets_sec)),
@@ -86,6 +92,9 @@ pub fn render(
 
     let mut widths = vec![
         ratatui::layout::Constraint::Length(12),
+        ratatui::layout::Constraint::Length(11),
+        ratatui::layout::Constraint::Length(10),
+        ratatui::layout::Constraint::Length(9),
         ratatui::layout::Constraint::Length(9),
         ratatui::layout::Constraint::Length(9),
         ratatui::layout::Constraint::Length(9),

@@ -9,6 +9,9 @@ use std::time::Instant;
 pub struct NetworkMetrics {
     pub timestamp: i64,
     pub interface: String,
+    pub topology_hint: String,
+    pub family_hint: String,
+    pub medium_hint: String,
     pub rx_bytes_sec: u64,
     pub tx_bytes_sec: u64,
     pub rx_packets_sec: u64,
@@ -81,6 +84,7 @@ fn collect_network(c: &mut NetworkCollector) -> Result<Vec<NetworkMetrics>> {
     let mut results = Vec::new();
 
     for iface in interfaces {
+        let identity = classify_network_identity(&iface.interface);
         let (rx_bytes_sec, tx_bytes_sec, rx_packets_sec, tx_packets_sec) = if let (
             Some(prev),
             Some(elapsed_secs),
@@ -106,6 +110,9 @@ fn collect_network(c: &mut NetworkCollector) -> Result<Vec<NetworkMetrics>> {
         results.push(NetworkMetrics {
             timestamp: now,
             interface: iface.interface.clone(),
+            topology_hint: identity.topology,
+            family_hint: identity.family,
+            medium_hint: identity.medium,
             rx_bytes_sec,
             tx_bytes_sec,
             rx_packets_sec,
@@ -139,6 +146,84 @@ fn collect_network(c: &mut NetworkCollector) -> Result<Vec<NetworkMetrics>> {
 
     c.prev_at = Some(collected_at);
     Ok(results)
+}
+
+#[derive(Debug)]
+struct NetworkIdentity {
+    topology: String,
+    family: String,
+    medium: String,
+}
+
+fn classify_network_identity(interface: &str) -> NetworkIdentity {
+    let lowered = interface.to_ascii_lowercase();
+
+    let topology = if lowered == "lo" || lowered.starts_with("lo") {
+        "loopback"
+    } else if lowered.starts_with("docker")
+        || lowered.starts_with("br-")
+        || lowered.starts_with("veth")
+        || lowered.starts_with("virbr")
+        || lowered.starts_with("vmnet")
+        || lowered.starts_with("vboxnet")
+    {
+        "bridge-virtual"
+    } else if lowered.starts_with("tun")
+        || lowered.starts_with("tap")
+        || lowered.starts_with("wg")
+        || lowered.starts_with("utun")
+    {
+        "tunnel"
+    } else if lowered.starts_with("bond") || lowered.starts_with("team") {
+        "aggregate"
+    } else if lowered.contains("vpn") {
+        "vpn"
+    } else {
+        "host-interface"
+    };
+
+    let family = if lowered == "lo" || lowered.starts_with("lo") {
+        "local"
+    } else if lowered.starts_with("wl")
+        || lowered.starts_with("wlan")
+        || lowered.starts_with("wi-fi")
+        || lowered.starts_with("wifi")
+        || lowered.starts_with("en0")
+    {
+        "wireless"
+    } else if lowered.starts_with("tun")
+        || lowered.starts_with("tap")
+        || lowered.starts_with("wg")
+        || lowered.starts_with("utun")
+    {
+        "overlay"
+    } else if lowered.starts_with("docker")
+        || lowered.starts_with("br-")
+        || lowered.starts_with("veth")
+        || lowered.starts_with("virbr")
+    {
+        "container"
+    } else {
+        "ethernet"
+    };
+
+    let medium = if family == "wireless" {
+        "wifi"
+    } else if topology == "loopback" {
+        "software"
+    } else if topology == "tunnel" || family == "overlay" || topology == "vpn" {
+        "overlay"
+    } else if topology == "bridge-virtual" || family == "container" {
+        "virtual"
+    } else {
+        "wired"
+    };
+
+    NetworkIdentity {
+        topology: topology.to_string(),
+        family: family.to_string(),
+        medium: medium.to_string(),
+    }
 }
 
 fn per_second_u64(delta: u64, elapsed_secs: f64) -> u64 {
