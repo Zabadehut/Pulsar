@@ -72,8 +72,8 @@ What is not finished yet:
 ## Commands
 
 Use `pulsar --help` for the live CLI and `pulsar <command> --help` for per-command details.
-Built-in raw recording rotation and retention are now in the CLI. Zip archive compression is still planned and documented in [`docs/help.md`](docs/help.md).
-The TUI now exposes a technical reference pane with `/` for search, `?` for the index, and `1` to `6` for operator presets.
+Built-in recording rotation, retention, and closed-segment `zip` compression are now in the CLI. The standalone archive command is still planned and documented in [`docs/help.md`](docs/help.md).
+The TUI now exposes a technical reference pane with `/` for search, `?` for the index, `1` to `6` for operator presets, `v` for detail density, and `i` to switch `fr`/`en`.
 
 ```bash
 # Interactive TUI
@@ -83,7 +83,7 @@ pulsar
 pulsar snapshot --format json
 
 # Continuous recording
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 48
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 48 --compress zip
 
 # HTTP server
 pulsar server --port 9090
@@ -168,6 +168,12 @@ Recording defaults can now also be centralized in the config file:
 - `record.rotate`
 - `record.max_file_size_mb`
 - `record.keep_files`
+- `record.compress`
+
+TUI defaults can also be centralized:
+
+- `tui.theme`
+- `tui.locale`
 
 ## Architecture
 

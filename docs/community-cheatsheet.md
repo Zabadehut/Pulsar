@@ -41,7 +41,7 @@ pulsar snapshot --format json
 pulsar snapshot --format prometheus
 
 # continuous local recording
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
 
 # top processes
 pulsar top --sort cpu --limit 20
@@ -65,7 +65,7 @@ pulsar top --sort cpu --limit 20
 
 ```bash
 mkdir -p ./captures
-pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24
+pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
 ```
 
 ### Linux user service
@@ -84,7 +84,7 @@ systemctl --user status pulsar.service
 
 ## Recording Rotation
 
-Raw rotation and raw retention are implemented in the current CLI. Only archive compression is still planned.
+Raw rotation, raw retention, and closed-segment zip compression are implemented in the current CLI. Only the standalone archive command is still planned.
 
 ### Recommended policy
 
@@ -92,7 +92,7 @@ Raw rotation and raw retention are implemented in the current CLI. Only archive 
 - rotate daily for long-running baseline captures
 - force rotation when a file exceeds a max size such as `256MB`, `512MB`, or `1GB`
 - keep only a bounded number of raw files locally
-- keep compression as a later layer so the write path stays cheap
+- compress only closed segments so the active write path stays cheap
 
 ### Proposed CLI shape
 
@@ -102,7 +102,8 @@ pulsar record \
   --output ./captures \
   --rotate hourly \
   --max-file-size-mb 512 \
-  --keep-files 168
+  --keep-files 168 \
+  --compress zip
 ```
 
 ### Current semantics
@@ -110,6 +111,7 @@ pulsar record \
 - `--rotate never|hourly|daily`
 - `--max-file-size-mb <MB>`
 - `--keep-files <count>` keeps the latest raw `.jsonl` segments
+- `--compress zip` compresses only closed segments
 
 ## Planned Rust-Only Zip Command
 

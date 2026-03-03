@@ -1,5 +1,6 @@
 use crate::collectors::linux::{LinuxMetrics, PressureMetric};
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
@@ -11,12 +12,14 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     metrics: Option<&LinuxMetrics>,
+    locale: Locale,
+    detailed: bool,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            " ◉ LINUX ",
+            text(locale, " ◉ LINUX ", " ◉ LINUX "),
             if highlighted {
                 theme.highlight_style()
             } else {
@@ -34,18 +37,29 @@ pub fn render(
     frame.render_widget(block, area);
 
     let Some(metrics) = metrics else {
-        frame.render_widget(Paragraph::new("No Linux-specific metrics"), inner);
+        frame.render_widget(
+            Paragraph::new(text(
+                locale,
+                "Pas de metriques Linux specifiques",
+                "No Linux-specific metrics",
+            )),
+            inner,
+        );
         return;
     };
 
+    let mut constraints = vec![
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+    ];
+    if detailed && inner.height >= 6 {
+        constraints.push(Constraint::Length(1));
+    }
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ])
+        .constraints(constraints)
         .split(inner);
 
     let cgroup_line = if let Some(cgroup) = metrics.cgroup.as_ref() {
@@ -54,15 +68,16 @@ pub fn render(
             .map(format_gib)
             .unwrap_or_else(|| "unbounded".to_string());
         format!(
-            " cgroup v{}  mem {} / {} ({:.0}%)  pids {}",
+            " cgroup v{}  {} {} / {} ({:.0}%)  pids {}",
             cgroup.version,
+            text(locale, "mem", "mem"),
             format_gib(cgroup.memory_current_bytes),
             memory_limit,
             cgroup.memory_usage_pct,
             cgroup.pids_current
         )
     } else {
-        " cgroup v2 not detected".to_string()
+        text(locale, " cgroup v2 non detecte", " cgroup v2 not detected").to_string()
     };
     frame.render_widget(paragraph(cgroup_line, theme), chunks[0]);
 
@@ -73,13 +88,19 @@ pub fn render(
             0.0
         };
         format!(
-            " cpu throttle {:.1}%  usage {} ms  throttled {} ms",
+            " cpu throttle {:.1}%  {} {} ms  throttle {} ms",
             throttling_pct,
+            text(locale, "usage", "usage"),
             cgroup.cpu_usage_usec / 1_000,
             cgroup.cpu_throttled_usec / 1_000
         )
     } else {
-        " cpu throttle unavailable".to_string()
+        text(
+            locale,
+            " cpu throttle indisponible",
+            " cpu throttle unavailable",
+        )
+        .to_string()
     };
     frame.render_widget(paragraph(throttling_line, theme), chunks[1]);
 
@@ -90,7 +111,7 @@ pub fn render(
             format_avg10(&psi.memory)
         )
     } else {
-        " psi unavailable".to_string()
+        text(locale, " psi indisponible", " psi unavailable").to_string()
     };
     frame.render_widget(paragraph(psi_cpu_mem, theme), chunks[2]);
 
@@ -101,9 +122,28 @@ pub fn render(
             cgroup_path(metrics)
         )
     } else {
-        " psi io unavailable".to_string()
+        text(locale, " psi io indisponible", " psi io unavailable").to_string()
     };
     frame.render_widget(paragraph(psi_io, theme), chunks[3]);
+
+    if detailed && chunks.len() > 4 {
+        let quota = metrics
+            .cgroup
+            .as_ref()
+            .and_then(|cgroup| cgroup.cpu_quota_usec)
+            .map(|value| format!("{value}us"))
+            .unwrap_or_else(|| text(locale, "illimite", "unbounded").to_string());
+        let pids_max = metrics
+            .cgroup
+            .as_ref()
+            .and_then(|cgroup| cgroup.pids_max)
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| text(locale, "illimite", "unbounded").to_string());
+        frame.render_widget(
+            paragraph(format!(" quota {}  pids max {}", quota, pids_max), theme),
+            chunks[4],
+        );
+    }
 }
 
 fn paragraph(text: String, theme: &Theme) -> Paragraph<'static> {

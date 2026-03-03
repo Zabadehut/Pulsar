@@ -1,5 +1,6 @@
 use crate::collectors::{Alert as PulsarAlert, AlertLevel};
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
@@ -11,12 +12,17 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     alerts: &[PulsarAlert],
+    locale: Locale,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            format!(" ◉ ALERTS ({}) ", alerts.len()),
+            format!(
+                " ◉ {} ({}) ",
+                text(locale, "ALERTES", "ALERTS"),
+                alerts.len()
+            ),
             if highlighted {
                 theme.alert_style()
             } else {
@@ -35,7 +41,7 @@ pub fn render(
 
     if alerts.is_empty() {
         frame.render_widget(
-            Paragraph::new("No active alerts")
+            Paragraph::new(text(locale, "Aucune alerte active", "No active alerts"))
                 .style(ratatui::style::Style::default().fg(theme.neutral)),
             inner,
         );
@@ -51,7 +57,7 @@ pub fn render(
                 AlertLevel::Info => theme.highlight_style(),
             };
             Line::from(vec![
-                Span::styled(level_label(&alert.level), style),
+                Span::styled(level_label(&alert.level, locale), style),
                 Span::raw(" "),
                 Span::raw(truncate_text(
                     &alert.message,
@@ -64,11 +70,11 @@ pub fn render(
     frame.render_widget(Paragraph::new(lines), inner);
 }
 
-fn level_label(level: &AlertLevel) -> &'static str {
+fn level_label(level: &AlertLevel, locale: Locale) -> &'static str {
     match level {
-        AlertLevel::Critical => "CRIT",
-        AlertLevel::Warning => "WARN",
-        AlertLevel::Info => "INFO",
+        AlertLevel::Critical => text(locale, "CRIT", "CRIT"),
+        AlertLevel::Warning => text(locale, "ALRT", "WARN"),
+        AlertLevel::Info => text(locale, "INFO", "INFO"),
     }
 }
 

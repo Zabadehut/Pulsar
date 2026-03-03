@@ -1,5 +1,6 @@
 use crate::collectors::CpuMetrics;
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
@@ -7,26 +8,27 @@ use ratatui::{
     Frame,
 };
 
-pub fn render(
-    frame: &mut Frame,
-    area: Rect,
-    metrics: Option<&CpuMetrics>,
-    trend_p50: f64,
-    trend_p95: f64,
-    theme: &Theme,
-    highlighted: bool,
-) {
+pub struct CpuWidgetState<'a> {
+    pub metrics: Option<&'a CpuMetrics>,
+    pub trend_p50: f64,
+    pub trend_p95: f64,
+    pub locale: Locale,
+    pub detailed: bool,
+    pub highlighted: bool,
+}
+
+pub fn render(frame: &mut Frame, area: Rect, state: CpuWidgetState<'_>, theme: &Theme) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            " ◉ CPU ",
-            if highlighted {
+            text(state.locale, " ◉ CPU ", " ◉ CPU "),
+            if state.highlighted {
                 theme.highlight_style()
             } else {
                 theme.title_style()
             },
         )]))
         .borders(Borders::ALL)
-        .border_style(if highlighted {
+        .border_style(if state.highlighted {
             theme.highlight_style()
         } else {
             theme.border_style()
@@ -35,36 +37,44 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let Some(m) = metrics else {
-        frame.render_widget(Paragraph::new("Collecting..."), inner);
+    let Some(metrics) = state.metrics else {
+        frame.render_widget(
+            Paragraph::new(text(state.locale, "Collecte...", "Collecting...")),
+            inner,
+        );
         return;
     };
 
-    // Layout : gauge global + load avg + stats
+    let mut constraints = vec![
+        Constraint::Length(2),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+    ];
+    if state.detailed && inner.height >= 7 {
+        constraints.push(Constraint::Length(1));
+    }
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2), // gauge global
-            Constraint::Length(1), // load avg
-            Constraint::Length(1), // user / nice / system / idle
-            Constraint::Length(1), // iowait / irq / softirq / steal
-            Constraint::Length(1), // context switches / interrupts / trend
-        ])
+        .constraints(constraints)
         .split(inner);
 
-    // Gauge CPU global
-    let pct = m.global_usage_pct.clamp(0.0, 100.0);
-    let label = format!("{:.1}%", pct);
-    let gauge = Gauge::default()
-        .gauge_style(theme.gauge_for_pct(pct))
-        .ratio(pct / 100.0)
-        .label(label);
-    frame.render_widget(gauge, chunks[0]);
+    let pct = metrics.global_usage_pct.clamp(0.0, 100.0);
+    frame.render_widget(
+        Gauge::default()
+            .gauge_style(theme.gauge_for_pct(pct))
+            .ratio(pct / 100.0)
+            .label(format!("{pct:.1}%")),
+        chunks[0],
+    );
 
-    // Load averages
     let load_text = format!(
-        " Load: {:.2}  {:.2}  {:.2}  (1m  5m  15m)",
-        m.load_avg_1, m.load_avg_5, m.load_avg_15
+        " {}: {:.2}  {:.2}  {:.2}  (1m  5m  15m)",
+        text(state.locale, "Charge", "Load"),
+        metrics.load_avg_1,
+        metrics.load_avg_5,
+        metrics.load_avg_15
     );
     frame.render_widget(
         Paragraph::new(load_text).style(ratatui::style::Style::default().fg(theme.neutral)),
@@ -72,8 +82,12 @@ pub fn render(
     );
 
     let mode_text = format!(
-        " usr: {:.1}%  nice: {:.1}%  sys: {:.1}%  idle: {:.1}%",
-        m.modes.user_pct, m.modes.nice_pct, m.modes.system_pct, m.modes.idle_pct,
+        " usr: {:.1}%  nice: {:.1}%  {}: {:.1}%  idle: {:.1}%",
+        metrics.modes.user_pct,
+        metrics.modes.nice_pct,
+        text(state.locale, "sys", "sys"),
+        metrics.modes.system_pct,
+        metrics.modes.idle_pct,
     );
     frame.render_widget(
         Paragraph::new(mode_text).style(ratatui::style::Style::default().fg(theme.neutral)),
@@ -81,20 +95,43 @@ pub fn render(
     );
 
     let irq_text = format!(
-        " iow: {:.1}%  irq: {:.1}%  sirq: {:.1}%  stl: {:.1}%",
-        m.modes.iowait_pct, m.modes.irq_pct, m.modes.softirq_pct, m.modes.steal_pct,
+        " iow: {:.1}%  irq: {:.1}%  sirq: {:.1}%  {}: {:.1}%",
+        metrics.modes.iowait_pct,
+        metrics.modes.irq_pct,
+        metrics.modes.softirq_pct,
+        text(state.locale, "vol", "stl"),
+        metrics.modes.steal_pct,
     );
     frame.render_widget(
         Paragraph::new(irq_text).style(ratatui::style::Style::default().fg(theme.neutral)),
         chunks[3],
     );
 
-    let detail_text = format!(
+    let trend_text = format!(
         " ctx: {}  irq: {}  p50/p95: {:.1}/{:.1}",
-        m.context_switches, m.interrupts, trend_p50, trend_p95
+        metrics.context_switches, metrics.interrupts, state.trend_p50, state.trend_p95
     );
     frame.render_widget(
-        Paragraph::new(detail_text).style(ratatui::style::Style::default().fg(theme.neutral)),
+        Paragraph::new(trend_text).style(ratatui::style::Style::default().fg(theme.neutral)),
         chunks[4],
     );
+
+    if state.detailed && chunks.len() > 5 {
+        let hottest = metrics
+            .per_core
+            .iter()
+            .take(8)
+            .map(|core| format!("c{}:{:.0}%", core.id, core.usage_pct))
+            .collect::<Vec<_>>()
+            .join("  ");
+        frame.render_widget(
+            Paragraph::new(format!(
+                " {} {}",
+                text(state.locale, "coeurs:", "cores:"),
+                hottest
+            ))
+            .style(ratatui::style::Style::default().fg(theme.neutral)),
+            chunks[5],
+        );
+    }
 }

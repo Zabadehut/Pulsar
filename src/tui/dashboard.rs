@@ -1,6 +1,7 @@
 use crate::collectors::Snapshot;
 use crate::reference::{self, Locale, SearchHit, UiVisibility};
 use crate::tui::{
+    i18n::text,
     theme::Theme,
     widgets::{
         alerts_widget, cpu_widget, disk_widget, linux_widget, memory_widget, network_widget,
@@ -100,8 +101,10 @@ impl PanelVisibility {
 pub struct Dashboard {
     pub theme_name: String,
     pub theme: Theme,
+    locale: Locale,
     visibility: PanelVisibility,
     operator_mode: OperatorMode,
+    detail_level: DetailLevel,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -114,6 +117,12 @@ pub enum OperatorMode {
     Full,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum DetailLevel {
+    Compact,
+    Detailed,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ReferenceUiState {
     pub visible: bool,
@@ -123,13 +132,15 @@ pub struct ReferenceUiState {
 }
 
 impl Dashboard {
-    pub fn new(theme_name: &str) -> Self {
+    pub fn new(theme_name: &str, locale: Locale) -> Self {
         let theme_name = Theme::normalize_name(theme_name).to_string();
         Self {
             theme: Theme::from_name(&theme_name),
             theme_name,
+            locale,
             visibility: PanelVisibility::default(),
             operator_mode: OperatorMode::Full,
+            detail_level: DetailLevel::Detailed,
         }
     }
 
@@ -140,6 +151,17 @@ impl Dashboard {
 
     pub fn toggle_panel(&mut self, panel: Panel) {
         self.visibility.toggle(panel);
+    }
+
+    pub fn cycle_locale(&mut self) {
+        self.locale = self.locale.next();
+    }
+
+    pub fn toggle_detail(&mut self) {
+        self.detail_level = match self.detail_level {
+            DetailLevel::Compact => DetailLevel::Detailed,
+            DetailLevel::Detailed => DetailLevel::Compact,
+        };
     }
 
     pub fn set_operator_mode(&mut self, mode: OperatorMode) {
@@ -199,15 +221,36 @@ impl Dashboard {
             Span::raw(format!("  {}  {}  {}  {}", hostname, os, uptime, ts)),
             Span::raw("  "),
             Span::styled(
-                format!("mode:{}", self.operator_mode.label()),
+                format!(
+                    "{}:{}",
+                    text(self.locale, "mode", "mode"),
+                    self.operator_mode.label(self.locale)
+                ),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            Span::styled(
+                format!(
+                    "{}:{}",
+                    text(self.locale, "lang", "lang"),
+                    self.locale.code()
+                ),
                 self.theme.highlight_style(),
             ),
             Span::raw("  "),
             Span::styled(
                 if reference.query.is_empty() {
-                    "index:off".to_string()
+                    format!(
+                        "{}:{}",
+                        text(self.locale, "index", "index"),
+                        text(self.locale, "off", "off")
+                    )
                 } else {
-                    format!("search:{}", reference.query)
+                    format!(
+                        "{}:{}",
+                        text(self.locale, "search", "search"),
+                        reference.query
+                    )
                 },
                 if reference.query.is_empty() {
                     self.theme.muted_style()
@@ -268,6 +311,8 @@ impl Dashboard {
                     frame,
                     rows[1],
                     &snapshot.processes,
+                    self.locale,
+                    matches!(self.detail_level, DetailLevel::Detailed),
                     &self.theme,
                     self.panel_highlighted(Panel::Process, reference),
                 );
@@ -277,12 +322,18 @@ impl Dashboard {
                 frame,
                 area,
                 &snapshot.processes,
+                self.locale,
+                matches!(self.detail_level, DetailLevel::Detailed),
                 &self.theme,
                 self.panel_highlighted(Panel::Process, reference),
             ),
             (false, false) => {
                 frame.render_widget(
-                    Paragraph::new("All panels hidden. Toggle with s/c/m/l/d/n/a/p."),
+                    Paragraph::new(text(
+                        self.locale,
+                        "Tous les panneaux sont caches. Basculer avec s/c/m/l/d/n/a/p.",
+                        "All panels hidden. Toggle with s/c/m/l/d/n/a/p.",
+                    )),
                     area,
                 );
             }
@@ -329,30 +380,42 @@ impl Dashboard {
                     frame,
                     chunk,
                     snapshot.system.as_ref(),
+                    self.locale,
+                    matches!(self.detail_level, DetailLevel::Detailed),
                     &self.theme,
                     self.panel_highlighted(Panel::System, reference),
                 ),
                 Panel::Cpu => cpu_widget::render(
                     frame,
                     chunk,
-                    snapshot.cpu.as_ref(),
-                    snapshot.computed.cpu_trend_p50,
-                    snapshot.computed.cpu_trend_p95,
+                    cpu_widget::CpuWidgetState {
+                        metrics: snapshot.cpu.as_ref(),
+                        trend_p50: snapshot.computed.cpu_trend_p50,
+                        trend_p95: snapshot.computed.cpu_trend_p95,
+                        locale: self.locale,
+                        detailed: matches!(self.detail_level, DetailLevel::Detailed),
+                        highlighted: self.panel_highlighted(Panel::Cpu, reference),
+                    },
                     &self.theme,
-                    self.panel_highlighted(Panel::Cpu, reference),
                 ),
                 Panel::Memory => memory_widget::render(
                     frame,
                     chunk,
-                    snapshot.memory.as_ref(),
-                    snapshot.computed.memory_pressure,
+                    memory_widget::MemoryWidgetState {
+                        metrics: snapshot.memory.as_ref(),
+                        memory_pressure: snapshot.computed.memory_pressure,
+                        locale: self.locale,
+                        detailed: matches!(self.detail_level, DetailLevel::Detailed),
+                        highlighted: self.panel_highlighted(Panel::Memory, reference),
+                    },
                     &self.theme,
-                    self.panel_highlighted(Panel::Memory, reference),
                 ),
                 Panel::Linux => linux_widget::render(
                     frame,
                     chunk,
                     snapshot.linux.as_ref(),
+                    self.locale,
+                    matches!(self.detail_level, DetailLevel::Detailed),
                     &self.theme,
                     self.panel_highlighted(Panel::Linux, reference),
                 ),
@@ -377,6 +440,8 @@ impl Dashboard {
                     frame,
                     chunk,
                     &snapshot.disks,
+                    self.locale,
+                    matches!(self.detail_level, DetailLevel::Detailed),
                     &self.theme,
                     self.panel_highlighted(Panel::Disk, reference),
                 ),
@@ -384,6 +449,8 @@ impl Dashboard {
                     frame,
                     chunk,
                     &snapshot.networks,
+                    self.locale,
+                    matches!(self.detail_level, DetailLevel::Detailed),
                     &self.theme,
                     self.panel_highlighted(Panel::Network, reference),
                 ),
@@ -391,6 +458,7 @@ impl Dashboard {
                     frame,
                     chunk,
                     &snapshot.computed.alerts,
+                    self.locale,
                     &self.theme,
                     self.panel_highlighted(Panel::Alerts, reference),
                 ),
@@ -411,7 +479,8 @@ impl Dashboard {
             area,
             reference_widget::ReferenceWidgetState {
                 query: &reference.query,
-                mode: self.operator_mode.label(),
+                mode: self.operator_mode.label(self.locale),
+                locale: self.locale,
                 visible_count,
                 indexed_only_count: hits.len().saturating_sub(visible_count),
                 hits: &hits,
@@ -423,7 +492,7 @@ impl Dashboard {
 
     fn reference_hits(&self, reference: &ReferenceUiState) -> Vec<SearchHit> {
         if reference.query.is_empty() {
-            let mut hits: Vec<SearchHit> = reference::catalog_views(Locale::Fr)
+            let mut hits: Vec<SearchHit> = reference::catalog_views(self.locale)
                 .into_iter()
                 .enumerate()
                 .map(|(index, entry)| SearchHit {
@@ -440,7 +509,7 @@ impl Dashboard {
             });
             hits
         } else {
-            reference::search(&reference.query, Locale::Fr)
+            reference::search(&reference.query, self.locale)
         }
     }
 
@@ -485,50 +554,109 @@ impl Dashboard {
             Span::raw(":refresh  "),
             Span::styled("t", self.theme.highlight_style()),
             Span::raw(format!(":theme({})  ", self.theme_name)),
+            Span::styled("i", self.theme.highlight_style()),
+            Span::raw(format!(
+                ":{}({})  ",
+                text(self.locale, "lang", "lang"),
+                self.locale.code()
+            )),
+            Span::styled("v", self.theme.highlight_style()),
+            Span::raw(format!(
+                ":{}({})  ",
+                text(self.locale, "detail", "detail"),
+                self.detail_level.label(self.locale)
+            )),
             Span::styled("/", self.theme.highlight_style()),
-            Span::raw(":search  "),
+            Span::raw(format!(":{}  ", text(self.locale, "search", "search"))),
             Span::styled("?", self.theme.highlight_style()),
-            Span::raw(":index  "),
+            Span::raw(format!(":{}  ", text(self.locale, "index", "index"))),
             Span::styled("esc", self.theme.highlight_style()),
             Span::raw(if reference.input_active {
-                ":close search  "
+                text(self.locale, ":fermer recherche  ", ":close search  ")
             } else if reference.visible {
-                ":close index  "
+                text(self.locale, ":fermer index  ", ":close index  ")
             } else {
-                ":clear  "
+                text(self.locale, ":vider  ", ":clear  ")
             }),
             Span::styled("1", self.theme.highlight_style()),
-            Span::raw(":overview  "),
+            Span::raw(format!(":{}  ", OperatorMode::Overview.label(self.locale))),
             Span::styled("2", self.theme.highlight_style()),
-            Span::raw(":storage  "),
+            Span::raw(format!(":{}  ", OperatorMode::Storage.label(self.locale))),
             Span::styled("3", self.theme.highlight_style()),
-            Span::raw(":network  "),
+            Span::raw(format!(":{}  ", OperatorMode::Network.label(self.locale))),
             Span::styled("4", self.theme.highlight_style()),
-            Span::raw(":process  "),
+            Span::raw(format!(":{}  ", OperatorMode::Process.label(self.locale))),
             Span::styled("5", self.theme.highlight_style()),
-            Span::raw(":pressure  "),
+            Span::raw(format!(":{}  ", OperatorMode::Pressure.label(self.locale))),
             Span::styled("6", self.theme.highlight_style()),
-            Span::raw(":full  "),
-            panel_toggle_span("s", "sys", visibility.system, &self.theme),
+            Span::raw(format!(":{}  ", OperatorMode::Full.label(self.locale))),
+            panel_toggle_span(
+                "s",
+                text(self.locale, "sys", "sys"),
+                visibility.system,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("c", "cpu", visibility.cpu, &self.theme),
+            panel_toggle_span(
+                "c",
+                text(self.locale, "cpu", "cpu"),
+                visibility.cpu,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("m", "mem", visibility.memory, &self.theme),
+            panel_toggle_span(
+                "m",
+                text(self.locale, "mem", "mem"),
+                visibility.memory,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("l", "linux", visibility.linux, &self.theme),
+            panel_toggle_span(
+                "l",
+                text(self.locale, "linux", "linux"),
+                visibility.linux,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("d", "disk", visibility.disk, &self.theme),
+            panel_toggle_span(
+                "d",
+                text(self.locale, "disk", "disk"),
+                visibility.disk,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("n", "net", visibility.network, &self.theme),
+            panel_toggle_span(
+                "n",
+                text(self.locale, "net", "net"),
+                visibility.network,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("a", "alerts", visibility.alerts, &self.theme),
+            panel_toggle_span(
+                "a",
+                text(self.locale, "alertes", "alerts"),
+                visibility.alerts,
+                &self.theme,
+            ),
             Span::raw(" "),
-            panel_toggle_span("p", "proc", visibility.process, &self.theme),
-            Span::raw(format!("  visible:{}/8  ", self.visibility.visible_count())),
+            panel_toggle_span(
+                "p",
+                text(self.locale, "proc", "proc"),
+                visibility.process,
+                &self.theme,
+            ),
+            Span::raw(format!(
+                "  {}:{}/8  ",
+                text(self.locale, "visibles", "visible"),
+                self.visibility.visible_count()
+            )),
             Span::styled(
                 format!(
-                    "alerts:{} w:{} c:{}  ",
-                    alerts, snapshot.computed.alerts_warning, snapshot.computed.alerts_critical
+                    "{}:{} w:{} c:{}  ",
+                    text(self.locale, "alertes", "alerts"),
+                    alerts,
+                    snapshot.computed.alerts_warning,
+                    snapshot.computed.alerts_critical
                 ),
                 if alerts > 0 {
                     self.theme.alert_style()
@@ -539,9 +667,17 @@ impl Dashboard {
             Span::raw("  "),
             Span::styled(
                 if reference.query.is_empty() {
-                    "reference:all".to_string()
+                    format!(
+                        "{}:{}",
+                        text(self.locale, "reference", "reference"),
+                        text(self.locale, "tout", "all")
+                    )
                 } else {
-                    format!("reference:{}", reference.query)
+                    format!(
+                        "{}:{}",
+                        text(self.locale, "reference", "reference"),
+                        reference.query
+                    )
                 },
                 if reference.query.is_empty() {
                     self.theme.muted_style()
@@ -604,14 +740,14 @@ fn format_uptime(secs: u64) -> String {
 }
 
 impl OperatorMode {
-    pub fn label(self) -> &'static str {
+    pub fn label(self, locale: Locale) -> &'static str {
         match self {
-            Self::Overview => "overview",
-            Self::Storage => "storage",
-            Self::Network => "network",
-            Self::Process => "process",
-            Self::Pressure => "pressure",
-            Self::Full => "full",
+            Self::Overview => text(locale, "vue", "overview"),
+            Self::Storage => text(locale, "stockage", "storage"),
+            Self::Network => text(locale, "reseau", "network"),
+            Self::Process => text(locale, "processus", "process"),
+            Self::Pressure => text(locale, "pression", "pressure"),
+            Self::Full => text(locale, "complet", "full"),
         }
     }
 
@@ -688,6 +824,15 @@ impl OperatorMode {
             10_000usize.saturating_sub(index)
         } else {
             1_000usize.saturating_sub(index)
+        }
+    }
+}
+
+impl DetailLevel {
+    fn label(self, locale: Locale) -> &'static str {
+        match self {
+            Self::Compact => text(locale, "compact", "compact"),
+            Self::Detailed => text(locale, "detail", "detailed"),
         }
     }
 }

@@ -3,14 +3,30 @@ use crate::config::RecordConfig;
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RotationPolicy {
     Never,
     Hourly,
     Daily,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionMode {
+    None,
+    Zip,
+}
+
+impl CompressionMode {
+    pub fn parse(value: &str) -> Self {
+        match value.to_ascii_lowercase().as_str() {
+            "zip" => Self::Zip,
+            _ => Self::None,
+        }
+    }
 }
 
 impl RotationPolicy {
@@ -49,6 +65,7 @@ pub struct RecordRuntimeOptions {
     pub rotate: RotationPolicy,
     pub max_file_size_bytes: Option<u64>,
     pub keep_files: Option<usize>,
+    pub compress: CompressionMode,
 }
 
 impl RecordRuntimeOptions {
@@ -59,6 +76,7 @@ impl RecordRuntimeOptions {
         rotate: Option<&str>,
         max_file_size_mb: Option<u64>,
         keep_files: Option<usize>,
+        compress: Option<&str>,
     ) -> Self {
         Self {
             interval_secs: parse_interval(interval).unwrap_or(defaults.interval_secs),
@@ -73,6 +91,9 @@ impl RecordRuntimeOptions {
             keep_files: keep_files
                 .or(defaults.keep_files)
                 .filter(|value| *value > 0),
+            compress: compress
+                .map(CompressionMode::parse)
+                .unwrap_or_else(|| CompressionMode::parse(&defaults.compress)),
         }
     }
 }
@@ -90,6 +111,7 @@ pub struct Recorder {
     rotate: RotationPolicy,
     max_file_size_bytes: Option<u64>,
     keep_files: Option<usize>,
+    compress: CompressionMode,
     active: Option<ActiveFile>,
 }
 
@@ -101,6 +123,7 @@ impl Recorder {
             rotate: options.rotate,
             max_file_size_bytes: options.max_file_size_bytes,
             keep_files: options.keep_files,
+            compress: options.compress,
             active: None,
         })
     }
@@ -136,6 +159,7 @@ impl Recorder {
     }
 
     fn rotate_file(&mut self, now: DateTime<Utc>) -> Result<()> {
+        let previous = self.active.take();
         let path = self
             .output
             .join(format!("pulsar_{}.jsonl", now.format("%Y%m%d_%H%M%S_%3f")));
@@ -146,9 +170,20 @@ impl Recorder {
             bucket_key: self.rotate.bucket_key(now),
             bytes_written: 0,
         });
+        if let Some(previous) = previous {
+            self.close_segment(previous.path);
+        }
         self.prune_old_files()?;
         tracing::info!("Writing to {:?}", path);
         Ok(())
+    }
+
+    fn close_segment(&self, path: PathBuf) {
+        if self.compress == CompressionMode::Zip {
+            if let Err(error) = compress_segment_to_zip(&path) {
+                tracing::warn!("Failed to compress {:?}: {}", path, error);
+            }
+        }
     }
 
     fn prune_old_files(&self) -> Result<()> {
@@ -157,16 +192,16 @@ impl Recorder {
         };
 
         let active_path = self.active.as_ref().map(|active| active.path.clone());
-        let mut raw_files = list_raw_segments(&self.output)?;
-        raw_files.sort();
+        let mut segments = list_segments(&self.output)?;
+        segments.sort();
 
         let active_count = usize::from(active_path.is_some());
-        raw_files.retain(|path| active_path.as_ref() != Some(path));
+        segments.retain(|path| active_path.as_ref() != Some(path));
 
-        let removable = raw_files
+        let removable = segments
             .len()
             .saturating_sub(keep_files.saturating_sub(active_count));
-        for candidate in raw_files.into_iter().take(removable) {
+        for candidate in segments.into_iter().take(removable) {
             fs::remove_file(candidate)?;
         }
 
@@ -174,7 +209,7 @@ impl Recorder {
     }
 }
 
-fn list_raw_segments(output: &Path) -> Result<Vec<PathBuf>> {
+fn list_segments(output: &Path) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     for entry in fs::read_dir(output)? {
         let entry = entry?;
@@ -182,12 +217,34 @@ fn list_raw_segments(output: &Path) -> Result<Vec<PathBuf>> {
         if path
             .file_name()
             .and_then(|value| value.to_str())
-            .is_some_and(|name| name.starts_with("pulsar_") && name.ends_with(".jsonl"))
+            .is_some_and(|name| {
+                name.starts_with("pulsar_")
+                    && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zip"))
+            })
         {
             files.push(path);
         }
     }
     Ok(files)
+}
+
+fn compress_segment_to_zip(path: &Path) -> Result<PathBuf> {
+    let zip_path = PathBuf::from(format!("{}.zip", path.display()));
+    let mut source = File::open(path)?;
+    let target = File::create(&zip_path)?;
+    let mut writer = ZipWriter::new(target);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("segment.jsonl");
+    writer.start_file(name, options)?;
+    let mut buffer = Vec::new();
+    source.read_to_end(&mut buffer)?;
+    writer.write_all(&buffer)?;
+    writer.finish()?;
+    fs::remove_file(path)?;
+    Ok(zip_path)
 }
 
 fn parse_interval(value: Option<&str>) -> Option<u64> {
@@ -221,6 +278,7 @@ mod tests {
             rotate: "daily".to_string(),
             max_file_size_mb: Some(128),
             keep_files: Some(7),
+            compress: "zip".to_string(),
         };
 
         let options = RecordRuntimeOptions::from_sources(
@@ -230,6 +288,7 @@ mod tests {
             Some("hourly"),
             None,
             Some(3),
+            None,
         );
 
         assert_eq!(options.interval_secs, 10);
@@ -237,6 +296,7 @@ mod tests {
         assert_eq!(options.rotate, RotationPolicy::Hourly);
         assert_eq!(options.max_file_size_bytes, Some(128 * 1024 * 1024));
         assert_eq!(options.keep_files, Some(3));
+        assert_eq!(options.compress, CompressionMode::Zip);
     }
 
     #[test]
@@ -254,6 +314,7 @@ mod tests {
             rotate: RotationPolicy::Never,
             max_file_size_bytes: None,
             keep_files: Some(2),
+            compress: CompressionMode::None,
         };
 
         let mut recorder = Recorder::new(options).unwrap();
@@ -263,8 +324,27 @@ mod tests {
         }
         recorder.rotate_file(Utc::now()).unwrap();
 
-        let files = list_raw_segments(&output).unwrap();
+        let files = list_segments(&output).unwrap();
         assert!(files.len() <= 2);
+
+        fs::remove_dir_all(output).unwrap();
+    }
+
+    #[test]
+    fn compression_replaces_raw_segment_with_zip() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let output = std::env::temp_dir().join(format!("pulsar-recorder-zip-test-{suffix}"));
+        fs::create_dir_all(&output).unwrap();
+
+        let raw = output.join("pulsar_20260303_120000_000.jsonl");
+        fs::write(&raw, "{\"ok\":true}\n").unwrap();
+
+        let zip_path = compress_segment_to_zip(&raw).unwrap();
+        assert!(!raw.exists());
+        assert!(zip_path.exists());
 
         fs::remove_dir_all(output).unwrap();
     }

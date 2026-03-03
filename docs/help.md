@@ -11,7 +11,7 @@ Current commands:
 - `pulsar`
 - `pulsar tui`
 - `pulsar snapshot --format json|csv|prometheus`
-- `pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24`
+- `pulsar record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip`
 - `pulsar server --port 9090`
 - `pulsar top --sort cpu --limit 20`
 - `pulsar watch --pid <PID>`
@@ -29,6 +29,8 @@ TUI knowledge helper:
 - `/` opens reference search
 - `?` toggles the technical index
 - `1`..`6` switch operator presets (`overview`, `storage`, `network`, `process`, `pressure`, `full`)
+- `v` toggles compact vs detailed views
+- `i` switches the TUI language and keeps the index aligned with it (`fr` / `en`)
 - `s` toggles the system panel
 - `Esc` closes search or the index pane
 
@@ -41,8 +43,8 @@ Current behavior:
 - writes local `.jsonl` files
 - can rotate raw files by hour or day
 - can rotate raw files on size threshold with `--max-file-size-mb`
-- can prune old raw files with `--keep-files`
-- does not yet compress rotated archives
+- can prune old local segments with `--keep-files`
+- can compress closed segments with `--compress zip`
 
 Current example:
 
@@ -53,7 +55,8 @@ pulsar record \
   --output ./captures \
   --rotate hourly \
   --max-file-size-mb 512 \
-  --keep-files 48
+  --keep-files 48 \
+  --compress zip
 ```
 
 ### `snapshot`
@@ -99,7 +102,7 @@ OS mapping:
 
 These shapes are documented for roadmap clarity only. They do not exist in the current binary help.
 
-### Planned archive compression
+### Planned standalone archive command
 
 ```bash
 pulsar archive zip \

@@ -35,6 +35,20 @@ impl Locale {
             _ => Self::Fr,
         }
     }
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Fr => "fr",
+            Self::En => "en",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        match self {
+            Self::Fr => Self::En,
+            Self::En => Self::Fr,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -39,6 +39,7 @@ bind    = "127.0.0.1"
 enabled         = true
 refresh_rate_ms = 500
 theme           = "dark"   # dark | light | cosmic
+locale          = "fr"     # fr | en
 
 [pipeline]
 cpu_trend    = true
@@ -67,3 +68,4 @@ output           = "."
 rotate           = "never" # never | hourly | daily
 max_file_size_mb = 0       # 0 disables size rotation
 keep_files       = 0       # 0 disables raw retention pruning
+compress         = "none"  # none | zip

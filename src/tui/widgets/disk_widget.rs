@@ -1,5 +1,6 @@
 use crate::collectors::DiskMetrics;
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
@@ -11,12 +12,14 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     disks: &[DiskMetrics],
+    locale: Locale,
+    detailed: bool,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            " ◉ DISK ",
+            text(locale, " ◉ DISQUE ", " ◉ DISK "),
             if highlighted {
                 theme.highlight_style()
             } else {
@@ -34,30 +37,37 @@ pub fn render(
     frame.render_widget(block, area);
 
     if disks.is_empty() {
-        frame.render_widget(Paragraph::new("No disk data"), inner);
+        frame.render_widget(
+            Paragraph::new(text(locale, "Pas de donnees disque", "No disk data")),
+            inner,
+        );
         return;
     }
 
-    let header = Row::new(vec![
-        Cell::from("Device"),
-        Cell::from("Used%"),
+    let mut header_cells = vec![
+        Cell::from(text(locale, "Device", "Device")),
+        Cell::from(text(locale, "Monte", "Mount")),
+        Cell::from(text(locale, "Use%", "Used%")),
         Cell::from("R IOPS"),
         Cell::from("W IOPS"),
-        Cell::from("Read KB/s"),
-        Cell::from("Write KB/s"),
+        Cell::from(text(locale, "Lect KB/s", "Read KB/s")),
+        Cell::from(text(locale, "Ecr KB/s", "Write KB/s")),
         Cell::from("Await"),
         Cell::from("Svc"),
         Cell::from("Qd"),
-        Cell::from("Merge/s"),
         Cell::from("Util%"),
-    ])
-    .style(theme.highlight_style());
+    ];
+    if detailed {
+        header_cells.push(Cell::from(text(locale, "Libre GB", "Free GB")));
+    }
+    let header = Row::new(header_cells).style(theme.highlight_style());
 
     let rows: Vec<Row> = disks
         .iter()
         .map(|d| {
-            Row::new(vec![
+            let mut cells = vec![
                 Cell::from(d.device.clone()),
+                Cell::from(d.mount_point.chars().take(10).collect::<String>()),
                 Cell::from(format!("{:.1}%", d.usage_pct)),
                 Cell::from(format!("{}", d.read_iops)),
                 Cell::from(format!("{}", d.write_iops)),
@@ -66,17 +76,18 @@ pub fn render(
                 Cell::from(format!("{:.1}ms", d.await_ms)),
                 Cell::from(format!("{:.1}ms", d.service_time_ms)),
                 Cell::from(format!("{:.2}", d.queue_depth)),
-                Cell::from(format!(
-                    "{}/{}",
-                    d.read_merged_ops_sec, d.write_merged_ops_sec
-                )),
                 Cell::from(format!("{:.1}%", d.util_pct)),
-            ])
+            ];
+            if detailed {
+                cells.push(Cell::from(format!("{:.1}", d.free_gb)));
+            }
+            Row::new(cells)
         })
         .collect();
 
-    let widths = [
+    let mut widths = vec![
         ratatui::layout::Constraint::Length(8),
+        ratatui::layout::Constraint::Length(11),
         ratatui::layout::Constraint::Length(7),
         ratatui::layout::Constraint::Length(7),
         ratatui::layout::Constraint::Length(7),
@@ -85,9 +96,11 @@ pub fn render(
         ratatui::layout::Constraint::Length(9),
         ratatui::layout::Constraint::Length(8),
         ratatui::layout::Constraint::Length(6),
-        ratatui::layout::Constraint::Length(11),
         ratatui::layout::Constraint::Length(6),
     ];
+    if detailed {
+        widths.push(ratatui::layout::Constraint::Length(7));
+    }
 
     let table = Table::new(rows, widths).header(header);
     frame.render_widget(table, inner);

@@ -1,5 +1,6 @@
 use crate::collectors::ProcessMetrics;
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
@@ -11,12 +12,18 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     processes: &[ProcessMetrics],
+    locale: Locale,
+    detailed: bool,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            format!(" ◉ PROCESSES (top {}) ", processes.len()),
+            format!(
+                " ◉ {} (top {}) ",
+                text(locale, "PROCESSUS", "PROCESSES"),
+                processes.len()
+            ),
             if highlighted {
                 theme.highlight_style()
             } else {
@@ -34,21 +41,27 @@ pub fn render(
     frame.render_widget(block, area);
 
     if processes.is_empty() {
-        frame.render_widget(Paragraph::new("No process data"), inner);
+        frame.render_widget(
+            Paragraph::new(text(locale, "Pas de donnees processus", "No process data")),
+            inner,
+        );
         return;
     }
 
-    let header = Row::new(vec![
+    let mut header_cells = vec![
         Cell::from("PID"),
-        Cell::from("Name"),
+        Cell::from(text(locale, "Nom", "Name")),
         Cell::from("CPU%"),
         Cell::from("MEM MB"),
-        Cell::from("State"),
+        Cell::from(text(locale, "Etat", "State")),
         Cell::from("FDs"),
-        Cell::from("User"),
+        Cell::from(text(locale, "User", "User")),
         Cell::from("JVM"),
-    ])
-    .style(theme.highlight_style());
+    ];
+    if detailed {
+        header_cells.push(Cell::from("IO MB"));
+    }
+    let header = Row::new(header_cells).style(theme.highlight_style());
 
     let rows: Vec<Row> = processes
         .iter()
@@ -59,7 +72,7 @@ pub fn render(
                 ratatui::style::Style::default().fg(theme.text)
             };
 
-            Row::new(vec![
+            let mut cells = vec![
                 Cell::from(format!("{}", p.pid)),
                 Cell::from(p.name.chars().take(16).collect::<String>()),
                 Cell::from(format!("{:.1}", p.cpu_pct)).style(cpu_style),
@@ -68,11 +81,18 @@ pub fn render(
                 Cell::from(format!("{}", p.fd_count)),
                 Cell::from(p.user.chars().take(10).collect::<String>()),
                 Cell::from(if p.is_jvm { "JVM" } else { "" }),
-            ])
+            ];
+            if detailed {
+                cells.push(Cell::from(format!(
+                    "{:.1}",
+                    (p.io_read_bytes + p.io_write_bytes) as f64 / (1024.0 * 1024.0)
+                )));
+            }
+            Row::new(cells)
         })
         .collect();
 
-    let widths = [
+    let mut widths = vec![
         ratatui::layout::Constraint::Length(7),
         ratatui::layout::Constraint::Length(17),
         ratatui::layout::Constraint::Length(7),
@@ -82,6 +102,9 @@ pub fn render(
         ratatui::layout::Constraint::Length(11),
         ratatui::layout::Constraint::Length(4),
     ];
+    if detailed {
+        widths.push(ratatui::layout::Constraint::Length(7));
+    }
 
     let table = Table::new(rows, widths).header(header);
     frame.render_widget(table, inner);

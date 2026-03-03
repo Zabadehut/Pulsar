@@ -1,5 +1,5 @@
-use crate::reference::SearchHit;
-use crate::tui::theme::Theme;
+use crate::reference::{Locale, SearchHit};
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
@@ -10,6 +10,7 @@ use ratatui::{
 pub struct ReferenceWidgetState<'a> {
     pub query: &'a str,
     pub mode: &'a str,
+    pub locale: Locale,
     pub visible_count: usize,
     pub indexed_only_count: usize,
     pub hits: &'a [SearchHit],
@@ -18,9 +19,13 @@ pub struct ReferenceWidgetState<'a> {
 
 pub fn render(frame: &mut Frame, area: Rect, state: ReferenceWidgetState<'_>, theme: &Theme) {
     let title = if state.query.is_empty() {
-        " ◉ REFERENCE INDEX "
+        text(state.locale, " ◉ INDEX TECHNIQUE ", " ◉ REFERENCE INDEX ")
     } else {
-        " ◉ REFERENCE SEARCH "
+        text(
+            state.locale,
+            " ◉ RECHERCHE TECHNIQUE ",
+            " ◉ REFERENCE SEARCH ",
+        )
     };
 
     let block = Block::default()
@@ -37,9 +42,17 @@ pub fn render(frame: &mut Frame, area: Rect, state: ReferenceWidgetState<'_>, th
 
     if state.hits.is_empty() {
         let empty = if state.query.is_empty() {
-            "Press / to search technical terms."
+            text(
+                state.locale,
+                "Appuyez sur / pour rechercher un terme technique.",
+                "Press / to search technical terms.",
+            )
         } else {
-            "No reference entry matches this query."
+            text(
+                state.locale,
+                "Aucune entree ne correspond a cette recherche.",
+                "No reference entry matches this query.",
+            )
         };
         frame.render_widget(
             Paragraph::new(empty)
@@ -52,21 +65,33 @@ pub fn render(frame: &mut Frame, area: Rect, state: ReferenceWidgetState<'_>, th
 
     let mut lines = Vec::new();
     lines.push(Line::from(vec![
-        Span::styled("query: ", theme.highlight_style()),
+        Span::styled(
+            format!("{}: ", text(state.locale, "requete", "query")),
+            theme.highlight_style(),
+        ),
         Span::raw(if state.query.is_empty() {
-            "(index)"
+            text(state.locale, "(index)", "(index)")
         } else {
             state.query
         }),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("mode: ", theme.highlight_style()),
+        Span::styled(
+            format!("{}: ", text(state.locale, "mode", "mode")),
+            theme.highlight_style(),
+        ),
         Span::raw(state.mode),
         Span::raw("  "),
-        Span::styled("ui: ", theme.highlight_style()),
+        Span::styled(
+            format!("{}: ", text(state.locale, "ui", "ui")),
+            theme.highlight_style(),
+        ),
         Span::raw(format!(
-            "{} visible / {} indexed",
-            state.visible_count, state.indexed_only_count
+            "{} {} / {} {}",
+            state.visible_count,
+            text(state.locale, "visibles", "visible"),
+            state.indexed_only_count,
+            text(state.locale, "indexes", "indexed"),
         )),
     ]));
     lines.push(Line::default());

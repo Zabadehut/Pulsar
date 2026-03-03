@@ -70,6 +70,7 @@ async fn main() -> Result<()> {
             rotate,
             max_file_size_mb,
             keep_files,
+            compress,
         } => {
             let options = RecordRuntimeOptions::from_sources(
                 &config.record,
@@ -78,6 +79,7 @@ async fn main() -> Result<()> {
                 rotate.as_deref(),
                 max_file_size_mb,
                 keep_files,
+                compress.as_deref(),
             );
             run_record(config, options).await
         }

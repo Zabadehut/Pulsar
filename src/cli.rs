@@ -41,7 +41,7 @@ Reference and explain:
     author = "Kevin Vanden-Brande <zaba88@hotmail.fr>",
     about = "Local-first system observability engine for Linux, macOS, and Windows",
     after_help = AFTER_HELP,
-    long_about = "Pulsar is a local-first system observability engine.\n\nAvailable today:\n- interactive TUI with operator presets and reference index\n- one-shot snapshots in json/csv/prometheus\n- local recording to .jsonl with built-in rotation and raw retention\n- top/watch process inspection\n- OS service scaffolding\n\nStill planned:\n- built-in archive zip compression\n\nSee docs/help.md for the operator cheat sheet and recording workflow."
+    long_about = "Pulsar is a local-first system observability engine.\n\nAvailable today:\n- interactive TUI with operator presets, detailed views, and a localized reference index\n- one-shot snapshots in json/csv/prometheus\n- local recording to .jsonl with built-in rotation, retention, and optional zip compression for closed segments\n- top/watch process inspection\n- OS service scaffolding\n\nStill planned:\n- a standalone archive command surface\n\nSee docs/help.md for the operator cheat sheet and recording workflow."
 )]
 pub struct Cli {
     /// Path to the Pulsar configuration file
@@ -79,9 +79,13 @@ pub enum Commands {
         #[arg(long, value_name = "MB")]
         max_file_size_mb: Option<u64>,
 
-        /// Keep only the latest N raw .jsonl files in the output directory
+        /// Keep only the latest N local recording segments in the output directory
         #[arg(long, value_name = "COUNT")]
         keep_files: Option<usize>,
+
+        /// Compress closed segments: none or zip
+        #[arg(long)]
+        compress: Option<String>,
     },
 
     /// Print one snapshot to stdout

@@ -1,10 +1,12 @@
 pub mod dashboard;
+pub mod i18n;
 pub mod theme;
 pub mod widgets;
 
 use crate::collectors::Snapshot;
 use crate::config::TuiConfig;
 use crate::engine::scheduler::TickEvent;
+use crate::reference::Locale;
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -24,7 +26,7 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut dashboard = Dashboard::new(&config.theme);
+    let mut dashboard = Dashboard::new(&config.theme, Locale::parse(&config.locale));
     let mut reference = ReferenceUiState::default();
     let refresh = Duration::from_millis(config.refresh_rate_ms);
     let mut current_snapshot = Snapshot::default();
@@ -102,6 +104,14 @@ pub async fn run_tui(config: &TuiConfig, mut rx: broadcast::Receiver<TickEvent>)
                         }
                     }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('i') | KeyCode::Char('I') => {
+                        dashboard.cycle_locale();
+                        terminal.clear()?;
+                    }
+                    KeyCode::Char('v') | KeyCode::Char('V') => {
+                        dashboard.toggle_detail();
                         terminal.clear()?;
                     }
                     KeyCode::Char('t') | KeyCode::Char('T') => {

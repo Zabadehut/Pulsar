@@ -47,11 +47,13 @@ Current shortcuts:
 
 - `/`: open search input
 - `?`: toggle reference index
+- `i`: switch the TUI locale (`fr` / `en`)
 - `Esc`: close search or index
 
 Behavior:
 
 - the right-side reference pane shows glossary/index content
+- the index language follows the active TUI locale
 - matching monitoring panels are visually highlighted
 - the same search model is reused for beginner and expert explanations
 - entries not yet rendered in the current TUI can still exist as `indexed_only`

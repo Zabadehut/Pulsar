@@ -74,6 +74,7 @@ pub struct TuiConfig {
     pub enabled: bool,
     pub refresh_rate_ms: u64,
     pub theme: String,
+    pub locale: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,6 +114,7 @@ pub struct RecordConfig {
     pub rotate: String,
     pub max_file_size_mb: Option<u64>,
     pub keep_files: Option<usize>,
+    pub compress: String,
 }
 
 impl Default for GeneralConfig {
@@ -174,6 +176,7 @@ impl Default for TuiConfig {
             enabled: true,
             refresh_rate_ms: 500,
             theme: "dark".to_string(),
+            locale: "fr".to_string(),
         }
     }
 }
@@ -218,6 +221,7 @@ impl Default for RecordConfig {
             rotate: "never".to_string(),
             max_file_size_mb: None,
             keep_files: None,
+            compress: "none".to_string(),
         }
     }
 }

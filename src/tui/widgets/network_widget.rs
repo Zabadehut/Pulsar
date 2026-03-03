@@ -1,5 +1,6 @@
 use crate::collectors::NetworkMetrics;
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
@@ -11,12 +12,14 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     networks: &[NetworkMetrics],
+    locale: Locale,
+    detailed: bool,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            " ◉ NETWORK ",
+            text(locale, " ◉ RESEAU ", " ◉ NETWORK "),
             if highlighted {
                 theme.highlight_style()
             } else {
@@ -34,27 +37,33 @@ pub fn render(
     frame.render_widget(block, area);
 
     if networks.is_empty() {
-        frame.render_widget(Paragraph::new("No network data"), inner);
+        frame.render_widget(
+            Paragraph::new(text(locale, "Pas de donnees reseau", "No network data")),
+            inner,
+        );
         return;
     }
 
-    let header = Row::new(vec![
-        Cell::from("Interface"),
+    let mut header_cells = vec![
+        Cell::from(text(locale, "Interface", "Interface")),
         Cell::from("RX KB/s"),
         Cell::from("TX KB/s"),
         Cell::from("RX pkt/s"),
         Cell::from("TX pkt/s"),
-        Cell::from("Errors"),
-        Cell::from("Drops"),
+        Cell::from(text(locale, "Erreurs", "Errors")),
+        Cell::from(text(locale, "Pertes", "Drops")),
         Cell::from("TCP"),
         Cell::from("UDP/Rtx"),
-    ])
-    .style(theme.highlight_style());
+    ];
+    if detailed {
+        header_cells.push(Cell::from(text(locale, "Conn", "Conn")));
+    }
+    let header = Row::new(header_cells).style(theme.highlight_style());
 
     let rows: Vec<Row> = networks
         .iter()
         .map(|n| {
-            Row::new(vec![
+            let mut cells = vec![
                 Cell::from(n.interface.clone()),
                 Cell::from(format!("{}", n.rx_bytes_sec / 1024)),
                 Cell::from(format!("{}", n.tx_bytes_sec / 1024)),
@@ -67,11 +76,15 @@ pub fn render(
                     n.connections_established, n.tcp_listen, n.tcp_time_wait
                 )),
                 Cell::from(format!("{}/{}", n.udp_total, n.retrans_segs)),
-            ])
+            ];
+            if detailed {
+                cells.push(Cell::from(format!("{}", n.connections_total)));
+            }
+            Row::new(cells)
         })
         .collect();
 
-    let widths = [
+    let mut widths = vec![
         ratatui::layout::Constraint::Length(12),
         ratatui::layout::Constraint::Length(9),
         ratatui::layout::Constraint::Length(9),
@@ -82,6 +95,9 @@ pub fn render(
         ratatui::layout::Constraint::Length(12),
         ratatui::layout::Constraint::Length(12),
     ];
+    if detailed {
+        widths.push(ratatui::layout::Constraint::Length(6));
+    }
 
     let table = Table::new(rows, widths).header(header);
     frame.render_widget(table, inner);

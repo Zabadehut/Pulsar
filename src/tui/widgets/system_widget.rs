@@ -1,5 +1,6 @@
 use crate::collectors::SystemMetrics;
-use crate::tui::theme::Theme;
+use crate::reference::Locale;
+use crate::tui::{i18n::text, theme::Theme};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
@@ -11,12 +12,14 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     metrics: Option<&SystemMetrics>,
+    locale: Locale,
+    detailed: bool,
     theme: &Theme,
     highlighted: bool,
 ) {
     let block = Block::default()
         .title(Line::from(vec![Span::styled(
-            " ◉ SYSTEM ",
+            text(locale, " ◉ SYSTEME ", " ◉ SYSTEM "),
             if highlighted {
                 theme.highlight_style()
             } else {
@@ -34,29 +37,42 @@ pub fn render(
     frame.render_widget(block, area);
 
     let Some(system) = metrics else {
-        frame.render_widget(Paragraph::new("Collecting..."), inner);
+        frame.render_widget(
+            Paragraph::new(text(locale, "Collecte...", "Collecting...")),
+            inner,
+        );
         return;
     };
 
+    let mut constraints = vec![
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+    ];
+    if detailed && inner.height >= 5 {
+        constraints.push(Constraint::Length(1));
+    }
     let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ])
+        .constraints(constraints)
         .split(inner);
 
     frame.render_widget(
-        paragraph(format!(" host: {}", system.hostname), theme),
+        paragraph(
+            format!(" {}: {}", text(locale, "hote", "host"), system.hostname),
+            theme,
+        ),
         rows[0],
     );
     frame.render_widget(
         paragraph(
             format!(
-                " os: {} {}  kernel: {}",
-                system.os_name, system.os_version, system.kernel_version
+                " os: {} {}  {}: {}",
+                system.os_name,
+                system.os_version,
+                text(locale, "noyau", "kernel"),
+                system.kernel_version
             ),
             theme,
         ),
@@ -64,15 +80,41 @@ pub fn render(
     );
     frame.render_widget(
         paragraph(
-            format!(" arch: {}  cpus: {}", system.architecture, system.cpu_count),
+            format!(
+                " arch: {}  {}: {}",
+                system.architecture,
+                text(locale, "cpus", "cpus"),
+                system.cpu_count
+            ),
             theme,
         ),
         rows[2],
     );
     frame.render_widget(
-        paragraph(format!(" uptime: {}s", system.uptime_seconds), theme),
+        paragraph(
+            format!(
+                " {}: {}s",
+                text(locale, "uptime", "uptime"),
+                system.uptime_seconds
+            ),
+            theme,
+        ),
         rows[3],
     );
+
+    if detailed && rows.len() > 4 {
+        frame.render_widget(
+            paragraph(
+                format!(
+                    " {}: {}",
+                    text(locale, "version", "version"),
+                    system.os_version
+                ),
+                theme,
+            ),
+            rows[4],
+        );
+    }
 }
 
 fn paragraph(text: String, theme: &Theme) -> Paragraph<'static> {

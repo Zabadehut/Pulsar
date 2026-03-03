@@ -86,7 +86,7 @@ retention_local_raw: active-only
 
 ## Enterprise CLI Surface
 
-Raw rotation and raw retention are already present in the CLI. Archive compression remains planned.
+Raw rotation, raw retention, and closed-segment zip compression are already present in the CLI. Only the standalone archive command remains planned.
 
 ```bash
 pulsar record \
@@ -94,7 +94,8 @@ pulsar record \
   --output /var/lib/pulsar/captures \
   --rotate hourly \
   --max-file-size-mb 512 \
-  --keep-files 168
+  --keep-files 168 \
+  --compress zip
 
 pulsar archive zip \
   --input /var/lib/pulsar/captures/pulsar_20260303_140000.jsonl \
