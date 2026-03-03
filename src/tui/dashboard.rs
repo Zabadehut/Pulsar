@@ -171,13 +171,14 @@ impl Dashboard {
 
     pub fn render(&self, frame: &mut Frame, snapshot: &Snapshot, reference: &ReferenceUiState) {
         let area = frame.area();
+        let header_height = self.header_height(area.width);
         let footer_height = self.footer_height(area.width);
 
         // Layout principal : header + corps + footer
         let main = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1),             // header
+                Constraint::Length(header_height), // header
                 Constraint::Min(0),                // corps
                 Constraint::Length(footer_height), // footer
             ])
@@ -217,49 +218,8 @@ impl Dashboard {
             .map(|dt| dt.format("%H:%M:%S").to_string())
             .unwrap_or_default();
 
-        let header = Paragraph::new(Line::from(vec![
-            Span::styled(" ◉ PULSAR ", self.theme.title_style()),
-            Span::raw(format!("  {}  {}  {}  {}", hostname, os, uptime, ts)),
-            Span::raw("  "),
-            Span::styled(
-                format!(
-                    "{}:{}",
-                    text(self.locale, "mode", "mode"),
-                    self.operator_mode.label(self.locale)
-                ),
-                self.theme.highlight_style(),
-            ),
-            Span::raw("  "),
-            Span::styled(
-                format!(
-                    "{}:{}",
-                    text(self.locale, "lang", "lang"),
-                    self.locale.code()
-                ),
-                self.theme.highlight_style(),
-            ),
-            Span::raw("  "),
-            Span::styled(
-                if reference.query.is_empty() {
-                    format!(
-                        "{}:{}",
-                        text(self.locale, "index", "index"),
-                        text(self.locale, "off", "off")
-                    )
-                } else {
-                    format!(
-                        "{}:{}",
-                        text(self.locale, "search", "search"),
-                        reference.query
-                    )
-                },
-                if reference.query.is_empty() {
-                    self.theme.muted_style()
-                } else {
-                    self.theme.highlight_style()
-                },
-            ),
-        ]));
+        let header =
+            Paragraph::new(self.header_lines(hostname, &os, &uptime, &ts, reference, area.width));
         frame.render_widget(header, area);
     }
 
@@ -561,6 +521,131 @@ impl Dashboard {
         } else {
             4
         }
+    }
+
+    fn header_height(&self, width: u16) -> u16 {
+        if width >= 150 {
+            1
+        } else if width >= 95 {
+            2
+        } else {
+            3
+        }
+    }
+
+    fn header_lines(
+        &self,
+        hostname: &str,
+        os: &str,
+        uptime: &str,
+        ts: &str,
+        reference: &ReferenceUiState,
+        width: u16,
+    ) -> Vec<Line<'static>> {
+        let title = Span::styled(" ◉ PULSAR ", self.theme.title_style());
+        let host_line = Line::from(vec![
+            title.clone(),
+            Span::raw(format!("  {hostname}  {os}  {uptime}  {ts}")),
+            Span::raw("  "),
+            Span::styled(
+                format!(
+                    "{}:{}",
+                    text(self.locale, "mode", "mode"),
+                    self.operator_mode.label(self.locale)
+                ),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            Span::styled(
+                format!(
+                    "{}:{}",
+                    text(self.locale, "lang", "lang"),
+                    self.locale.code()
+                ),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            self.reference_header_span(reference),
+        ]);
+
+        let system_line = Line::from(vec![
+            title.clone(),
+            Span::raw(format!("  {hostname}")),
+            Span::raw("  "),
+            Span::styled(os.to_string(), self.theme.muted_style()),
+            Span::raw("  "),
+            Span::styled(uptime.to_string(), self.theme.muted_style()),
+            Span::raw("  "),
+            Span::styled(ts.to_string(), self.theme.highlight_style()),
+        ]);
+
+        let context_line = Line::from(vec![
+            Span::styled(
+                format!(
+                    "{}:{}",
+                    text(self.locale, "mode", "mode"),
+                    self.operator_mode.label(self.locale)
+                ),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            Span::styled(
+                format!(
+                    "{}:{}",
+                    text(self.locale, "lang", "lang"),
+                    self.locale.code()
+                ),
+                self.theme.highlight_style(),
+            ),
+            Span::raw("  "),
+            self.reference_header_span(reference),
+        ]);
+
+        let identity_line = Line::from(vec![
+            title,
+            Span::raw(format!("  {hostname}")),
+            Span::raw("  "),
+            Span::styled(ts.to_string(), self.theme.highlight_style()),
+        ]);
+
+        if width >= 150 {
+            vec![host_line]
+        } else if width >= 95 {
+            vec![system_line, context_line]
+        } else {
+            vec![
+                identity_line,
+                Line::from(vec![
+                    Span::styled(os.to_string(), self.theme.muted_style()),
+                    Span::raw("  "),
+                    Span::styled(uptime.to_string(), self.theme.muted_style()),
+                ]),
+                context_line,
+            ]
+        }
+    }
+
+    fn reference_header_span(&self, reference: &ReferenceUiState) -> Span<'static> {
+        Span::styled(
+            if reference.query.is_empty() {
+                format!(
+                    "{}:{}",
+                    text(self.locale, "index", "index"),
+                    text(self.locale, "off", "off")
+                )
+            } else {
+                format!(
+                    "{}:{}",
+                    text(self.locale, "search", "search"),
+                    reference.query
+                )
+            },
+            if reference.query.is_empty() {
+                self.theme.muted_style()
+            } else {
+                self.theme.highlight_style()
+            },
+        )
     }
 
     fn footer_lines(
