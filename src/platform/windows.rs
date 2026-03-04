@@ -8,8 +8,21 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::mem::size_of;
 use std::process::Command;
+use std::ptr;
+use std::slice;
 use std::sync::OnceLock;
-use windows::Win32::Foundation::{CloseHandle, FILETIME, HANDLE};
+use windows::Win32::Foundation::{
+    CloseHandle, ERROR_INSUFFICIENT_BUFFER, FILETIME, HANDLE, NO_ERROR,
+};
+use windows::Win32::NetworkManagement::IpHelper::{
+    FreeMibTable, GetIfTable2, GetTcp6Table2, GetTcpStatisticsEx2, GetTcpTable2,
+    GetUdpStatisticsEx, MIB_IF_ROW2, MIB_IF_TABLE2, MIB_TCP6ROW2, MIB_TCP6TABLE2, MIB_TCPROW2,
+    MIB_TCPSTATS2, MIB_TCPTABLE2, MIB_TCP_STATE_CLOSED, MIB_TCP_STATE_CLOSE_WAIT,
+    MIB_TCP_STATE_CLOSING, MIB_TCP_STATE_ESTAB, MIB_TCP_STATE_FIN_WAIT1, MIB_TCP_STATE_FIN_WAIT2,
+    MIB_TCP_STATE_LAST_ACK, MIB_TCP_STATE_LISTEN, MIB_TCP_STATE_SYN_RCVD, MIB_TCP_STATE_SYN_SENT,
+    MIB_TCP_STATE_TIME_WAIT, MIB_UDPSTATS,
+};
+use windows::Win32::Networking::WinSock::{AF_INET, AF_INET6};
 use windows::Win32::System::SystemInformation::{
     GetNativeSystemInfo, GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX, SYSTEM_INFO,
 };
@@ -250,18 +263,26 @@ fn logical_stack_from_map(
 }
 
 pub fn read_net_connections() -> RawNetConnections {
-    let total = powershell_number_u32("(Get-NetTCPConnection | Measure-Object).Count").unwrap_or(0);
-    let established =
-        powershell_number_u32("(Get-NetTCPConnection -State Established | Measure-Object).Count")
-            .unwrap_or(0);
-    RawNetConnections {
-        total,
-        established,
-        ..RawNetConnections::default()
-    }
+    read_native_net_connections().unwrap_or_else(|| {
+        let total =
+            powershell_number_u32("(Get-NetTCPConnection | Measure-Object).Count").unwrap_or(0);
+        let established = powershell_number_u32(
+            "(Get-NetTCPConnection -State Established | Measure-Object).Count",
+        )
+        .unwrap_or(0);
+        RawNetConnections {
+            total,
+            established,
+            ..RawNetConnections::default()
+        }
+    })
 }
 
 pub fn read_network() -> Result<Vec<RawNetStat>> {
+    if let Some(stats) = read_native_network_stats() {
+        return Ok(stats);
+    }
+
     let values = powershell_json(
         "Get-NetAdapterStatistics | Select-Object Name,ReceivedBytes,SentBytes,ReceivedUnicastPackets,SentUnicastPackets,ReceivedPacketErrors,OutboundPacketErrors,ReceivedDiscardedPackets,OutboundDiscardedPackets | ConvertTo-Json -Compress",
     )
@@ -571,7 +592,7 @@ fn read_native_cpu_stat() -> Option<RawCpuStat> {
     let mut kernel = FILETIME::default();
     let mut user = FILETIME::default();
     unsafe {
-        GetSystemTimes(&mut idle, &mut kernel, &mut user).ok()?;
+        GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)).ok()?;
     }
 
     let idle_ticks = filetime_to_u64(idle);
@@ -614,6 +635,170 @@ fn read_process_native_metrics(pid: u32) -> Option<ProcessNativeMetrics> {
         io_read_bytes: io.ReadTransferCount,
         io_write_bytes: io.WriteTransferCount,
     })
+}
+
+fn read_native_network_stats() -> Option<Vec<RawNetStat>> {
+    let mut table = ptr::null_mut::<MIB_IF_TABLE2>();
+    let status = unsafe { GetIfTable2(&mut table) };
+    if status != NO_ERROR || table.is_null() {
+        return None;
+    }
+
+    let stats = unsafe {
+        let entries = slice::from_raw_parts((*table).Table.as_ptr(), (*table).NumEntries as usize);
+        entries
+            .iter()
+            .map(|row| RawNetStat {
+                interface: interface_name(row),
+                rx_bytes: row.InOctets,
+                rx_packets: row.InUcastPkts.saturating_add(row.InNUcastPkts),
+                rx_errors: row.InErrors,
+                rx_dropped: row.InDiscards,
+                tx_bytes: row.OutOctets,
+                tx_packets: row.OutUcastPkts.saturating_add(row.OutNUcastPkts),
+                tx_errors: row.OutErrors,
+                tx_dropped: row.OutDiscards,
+            })
+            .filter(|row| !row.interface.is_empty())
+            .collect::<Vec<_>>()
+    };
+
+    unsafe {
+        FreeMibTable(table.cast());
+    }
+
+    if stats.is_empty() {
+        None
+    } else {
+        Some(stats)
+    }
+}
+
+fn read_native_net_connections() -> Option<RawNetConnections> {
+    let tcp_v4 = read_tcp_rows_v4()?;
+    let tcp_v6 = read_tcp_rows_v6().unwrap_or_default();
+
+    let mut snapshot = RawNetConnections::default();
+    for state in tcp_v4.iter().copied() {
+        apply_tcp_state(&mut snapshot, state);
+    }
+    for state in tcp_v6.iter().copied() {
+        apply_tcp_state(&mut snapshot, state);
+    }
+    snapshot.total = tcp_v4.len().saturating_add(tcp_v6.len()) as u32;
+
+    let udp_v4 = read_udp_datagrams(AF_INET.0 as u32).unwrap_or(0);
+    let udp_v6 = read_udp_datagrams(AF_INET6.0 as u32).unwrap_or(0);
+    snapshot.udp_total = udp_v4.saturating_add(udp_v6);
+
+    let retrans_v4 = read_tcp_retransmissions(AF_INET.0 as u32).unwrap_or(0);
+    let retrans_v6 = read_tcp_retransmissions(AF_INET6.0 as u32).unwrap_or(0);
+    snapshot.retrans_segs = retrans_v4.saturating_add(retrans_v6);
+
+    Some(snapshot)
+}
+
+fn read_tcp_rows_v4() -> Option<Vec<u32>> {
+    let mut size = 0u32;
+    let status = unsafe { GetTcpTable2(None, &mut size, true) };
+    if status != ERROR_INSUFFICIENT_BUFFER.0 || size == 0 {
+        return None;
+    }
+
+    let mut buffer = vec![0u8; size as usize];
+    let table = buffer.as_mut_ptr().cast::<MIB_TCPTABLE2>();
+    let status = unsafe { GetTcpTable2(Some(table), &mut size, true) };
+    if status != NO_ERROR.0 {
+        return None;
+    }
+
+    Some(unsafe {
+        slice::from_raw_parts((*table).table.as_ptr(), (*table).dwNumEntries as usize)
+            .iter()
+            .map(|row: &MIB_TCPROW2| row.dwState)
+            .collect()
+    })
+}
+
+fn read_tcp_rows_v6() -> Option<Vec<u32>> {
+    let mut size = 0u32;
+    let status = unsafe { GetTcp6Table2(ptr::null_mut(), &mut size, true) };
+    if status != ERROR_INSUFFICIENT_BUFFER.0 || size == 0 {
+        return None;
+    }
+
+    let mut buffer = vec![0u8; size as usize];
+    let table = buffer.as_mut_ptr().cast::<MIB_TCP6TABLE2>();
+    let status = unsafe { GetTcp6Table2(table, &mut size, true) };
+    if status != NO_ERROR.0 {
+        return None;
+    }
+
+    Some(unsafe {
+        slice::from_raw_parts((*table).table.as_ptr(), (*table).dwNumEntries as usize)
+            .iter()
+            .map(|row: &MIB_TCP6ROW2| row.State)
+            .collect()
+    })
+}
+
+fn read_udp_datagrams(family: u32) -> Option<u32> {
+    let mut stats = MIB_UDPSTATS::default();
+    let status = unsafe { GetUdpStatisticsEx(&mut stats, family) };
+    if status == NO_ERROR.0 {
+        Some(stats.dwInDatagrams.saturating_add(stats.dwOutDatagrams))
+    } else {
+        None
+    }
+}
+
+fn read_tcp_retransmissions(family: u32) -> Option<u64> {
+    let mut stats = MIB_TCPSTATS2::default();
+    let status = unsafe { GetTcpStatisticsEx2(&mut stats, family) };
+    if status == NO_ERROR.0 {
+        Some(stats.dwRetransSegs as u64)
+    } else {
+        None
+    }
+}
+
+fn apply_tcp_state(snapshot: &mut RawNetConnections, state: u32) {
+    match state as i32 {
+        value if value == MIB_TCP_STATE_ESTAB.0 => snapshot.established += 1,
+        value if value == MIB_TCP_STATE_SYN_SENT.0 => snapshot.tcp_syn_sent += 1,
+        value if value == MIB_TCP_STATE_SYN_RCVD.0 => snapshot.tcp_syn_recv += 1,
+        value if value == MIB_TCP_STATE_FIN_WAIT1.0 => snapshot.tcp_fin_wait1 += 1,
+        value if value == MIB_TCP_STATE_FIN_WAIT2.0 => snapshot.tcp_fin_wait2 += 1,
+        value if value == MIB_TCP_STATE_TIME_WAIT.0 => snapshot.tcp_time_wait += 1,
+        value if value == MIB_TCP_STATE_CLOSED.0 => snapshot.tcp_close += 1,
+        value if value == MIB_TCP_STATE_CLOSE_WAIT.0 => snapshot.tcp_close_wait += 1,
+        value if value == MIB_TCP_STATE_LAST_ACK.0 => snapshot.tcp_last_ack += 1,
+        value if value == MIB_TCP_STATE_LISTEN.0 => snapshot.tcp_listen += 1,
+        value if value == MIB_TCP_STATE_CLOSING.0 => snapshot.tcp_closing += 1,
+        _ => snapshot.tcp_other += 1,
+    }
+}
+
+fn interface_name(row: &MIB_IF_ROW2) -> String {
+    let alias = utf16z_to_string(&row.Alias);
+    if !alias.is_empty() {
+        return alias;
+    }
+
+    let description = utf16z_to_string(&row.Description);
+    if !description.is_empty() {
+        return description;
+    }
+
+    format!("if{}", row.InterfaceIndex)
+}
+
+fn utf16z_to_string(buffer: &[u16]) -> String {
+    let len = buffer
+        .iter()
+        .position(|&value| value == 0)
+        .unwrap_or(buffer.len());
+    String::from_utf16_lossy(&buffer[..len]).trim().to_string()
 }
 
 fn filetime_to_u64(value: FILETIME) -> u64 {
