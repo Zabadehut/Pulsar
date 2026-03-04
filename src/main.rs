@@ -4,12 +4,15 @@ mod collectors;
 mod config;
 mod engine;
 mod exporters;
+mod install;
 mod inventory;
 mod log_sources;
+mod maintenance;
 mod pipeline;
 mod platform;
 mod recording;
 mod reference;
+mod schedule;
 mod service;
 mod tui;
 
@@ -93,13 +96,16 @@ async fn main() -> Result<()> {
             lang,
             audience,
         } => run_explain(&term, &lang, audience.as_deref()),
+        Commands::Install { no_service } => install::install_current_executable(!no_service).await,
+        Commands::Maintenance { action } => maintenance::run(action, &config).await,
+        Commands::Schedule { action } => schedule::run_schedule(action).await,
         Commands::Service { action } => service::run_service(action).await,
     }
 }
 
 // ─── Registry builder ────────────────────────────────────────────────────────
 
-fn build_registry(config: &Config) -> Registry {
+pub(crate) fn build_registry(config: &Config) -> Registry {
     let mut r = Registry::new();
     let col = &config.collectors;
     let secs = |n: u64| Duration::from_secs(n);
@@ -136,7 +142,7 @@ fn build_registry(config: &Config) -> Registry {
     r
 }
 
-fn build_pipeline(config: &Config) -> PipelineRunner {
+pub(crate) fn build_pipeline(config: &Config) -> PipelineRunner {
     let mut stages: Vec<Box<dyn PipelineStage>> = Vec::new();
     let pipeline = &config.pipeline;
 

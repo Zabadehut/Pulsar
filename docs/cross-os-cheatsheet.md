@@ -47,6 +47,8 @@ These commands reflect the current CLI. Raw file rotation, retention, and closed
 
 ```bash
 sysray
+sysray install
+sysray schedule install
 sysray snapshot --format json
 sysray record --interval 5s --output ./captures --rotate hourly --keep-files 24 --compress zip
 sysray service install
@@ -56,6 +58,8 @@ sysray service install
 
 ```bash
 sysray
+sysray install
+sysray schedule install
 sysray snapshot --format json
 sysray record --interval 5s --output ./captures --rotate daily --keep-files 14 --compress zip
 sysray service install
@@ -66,6 +70,8 @@ launchctl list com.zabadehut.sysray
 
 ```powershell
 sysray.exe
+sysray.exe install
+sysray.exe schedule install
 sysray.exe snapshot --format json
 sysray.exe record --interval 5s --output .\captures --rotate daily --keep-files 14 --compress zip
 sysray.exe service install
@@ -79,6 +85,14 @@ schtasks /Query /TN Sysray /V /FO LIST
 | Linux | `systemd --user` | usable when `systemd` user bus is available |
 | macOS | `launchd` user agent | usable, validated in native CI |
 | Windows | Task Scheduler | usable, validated in native CI |
+
+## Native Schedule Model By OS
+
+| OS | Recurring schedule mechanism | Current status |
+|---|---|---|
+| Linux | `systemd --user` timers | usable when `systemd` user bus is available |
+| macOS | `launchd` LaunchAgents | usable |
+| Windows | Task Scheduler recurring tasks | usable |
 
 ## Recording Layout Recommendation
 

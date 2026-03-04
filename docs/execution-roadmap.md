@@ -199,7 +199,7 @@ If execution starts now, the next exact order should be:
 1. Linux collector tests
 2. Benchmark harness for overhead
 3. Measured overhead docs
-4. Linux service flow validation hardening
+4. Linux service and schedule flow validation hardening
 5. Stress validation for busy Linux hosts
 6. macOS CPU/memory/system parity hardening
 7. macOS disk/network/process parity hardening

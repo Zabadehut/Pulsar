@@ -18,6 +18,11 @@ Current commands:
 - `sysray watch --pid <PID>`
 - `sysray replay <FILE>`
 - `sysray explain <TERM> [--lang fr|en] [--audience beginner|expert]`
+- `sysray install [--no-service]`
+- `sysray maintenance daily-snapshot`
+- `sysray maintenance prune [--directory <DIR>] [--retention-days <N>]`
+- `sysray maintenance archive [--source-dir <DIR>] [--archive-dir <DIR>] [--min-age-days <N>] [--max-age-days <N>]`
+- `sysray schedule install|status|uninstall`
 - `sysray service install|status|uninstall`
 
 HTTP inventory helper:
@@ -143,23 +148,62 @@ OS mapping:
 - macOS: `launchd`
 - Windows: Task Scheduler
 
+### `install`
+
+Examples:
+
+```bash
+sysray install
+sysray install --no-service
+```
+
+Behavior:
+
+- installs the running executable to a stable per-user path
+- Linux and macOS: `~/.local/bin/sysray`
+- Windows: `%LOCALAPPDATA%\Programs\Sysray\sysray.exe`
+- can immediately reinstall the native user service / scheduled task against that stable path
+
+### `maintenance`
+
+Examples:
+
+```bash
+sysray maintenance daily-snapshot
+sysray maintenance prune --retention-days 15
+sysray maintenance archive --min-age-days 15 --max-age-days 60
+```
+
+Intent:
+
+- replace common shell wrappers used from `cron`, `launchd`, or Task Scheduler
+- keep daily JSONL capture, pruning, and archiving logic inside the binary
+- keep behavior consistent across Linux, macOS, and Windows
+
+### `schedule`
+
+Examples:
+
+```bash
+sysray schedule install
+sysray schedule status
+sysray schedule uninstall
+```
+
+Behavior:
+
+- installs native recurring jobs without shell scripts in user crontabs
+- Linux: `systemd --user` timers
+- macOS: `launchd` LaunchAgents
+- Windows: Task Scheduler recurring tasks
+- current defaults install:
+- snapshot append every 5 minutes
+- prune every day at `02:00`
+- archive every day at `02:30`
+
 ## Planned, Not In CLI Yet
 
 These shapes are documented for roadmap clarity only. They do not exist in the current binary help.
-
-### Planned standalone archive command
-
-```bash
-sysray archive zip \
-  --input ./captures/sysray_20260303_140000.jsonl \
-  --output ./captures/sysray_20260303_140000.jsonl.zip
-```
-
-Constraints for that future archive path:
-
-- Rust-native implementation
-- no OS archive utility dependency
-- same behavior on Linux, macOS, and Windows
 
 ## Documentation Map
 

@@ -7,7 +7,7 @@ This backlog translates product vision into concrete execution priorities.
 These items must be done before making stronger public claims.
 
 - Expand regression coverage beyond the current Linux collector baseline
-- Validate service install/uninstall/status flows on each OS under stricter scenarios
+- Validate service and schedule install/uninstall/status flows on each OS under stricter scenarios
 - Document the actual supported feature set and platform scope
 - Add a repeatable benchmark harness for CPU, memory, and snapshot overhead
 - Publish measured overhead instead of aspirational performance language
@@ -27,7 +27,7 @@ These items must be done before making stronger public claims.
 - Implement real Windows CPU, memory, disk, network, process, and system collectors
 - Add per-OS capability tests
 - Define parity expectations by metric family
-- Add platform-specific service installation validation
+- Add platform-specific service and schedule installation validation
 
 ## P3: Metrics Depth
 

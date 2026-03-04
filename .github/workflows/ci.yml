@@ -125,8 +125,8 @@ jobs:
       - name: Prometheus Smoke Test
         run: cargo run --locked -- snapshot --format prometheus
 
-  service-validation:
-    name: Service Validation - ${{ matrix.os }}
+  automation-validation:
+    name: Automation Validation - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -150,10 +150,39 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         run: bash ./scripts/validate-service-flow.sh
 
+      - name: Validate Linux/macOS schedule flow
+        if: ${{ runner.os != 'Windows' }}
+        run: bash ./scripts/validate-schedule-flow.sh
+
       - name: Validate Windows service flow
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
         run: ./scripts/validate-service-flow.ps1
+
+      - name: Validate Windows schedule flow
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: ./scripts/validate-schedule-flow.ps1
+
+  linux-systemd-user-validation:
+    name: Linux systemd --user Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Validate Linux service and schedule with live systemd --user
+        run: bash ./scripts/validate-linux-systemd-user-flows.sh
 
   cross-check:
     name: Cross Check - ubuntu-latest

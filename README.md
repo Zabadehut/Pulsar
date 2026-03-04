@@ -120,6 +120,12 @@ bash scripts/capture-tui-screens.sh docs/screenshots
 # Interactive TUI
 sysray
 
+# Install current binary to a stable user path
+sysray install
+
+# Install native recurring tasks
+sysray schedule install
+
 # One-shot snapshot
 sysray snapshot --format json
 
@@ -142,6 +148,11 @@ sysray replay ./captures/sysray_20260303_130000.jsonl
 sysray explain latency
 sysray explain swap --lang en --audience beginner
 
+# Built-in maintenance tasks
+sysray maintenance daily-snapshot
+sysray maintenance prune --retention-days 15
+sysray maintenance archive --min-age-days 15 --max-age-days 60
+
 # Service integration
 sysray service install
 sysray service status
@@ -150,7 +161,7 @@ sysray service uninstall
 
 ## Linux Install And Update
 
-On Linux, install the release binary to a stable path instead of running from `target/debug/` or `target/release/`.
+On Linux, install the binary to a stable path instead of running from `target/debug/` or `target/release/`.
 
 Current Linux packaging assumptions:
 
@@ -158,7 +169,31 @@ Current Linux packaging assumptions:
 - service installation is currently `systemd`-oriented
 - non-`systemd` distributions can still run the binary, but the bundled service installer is not a universal Linux service manager
 
-Recommended user-level install:
+Recommended user-level install from an existing binary:
+
+```bash
+sysray install
+```
+
+This command:
+
+- installs the current executable to `~/.local/bin/sysray`
+- reinstalls the user service so it points to that stable binary path
+- warns when `~/.local/bin` is not in `PATH`
+
+For native recurring automation without `crontab` scripts:
+
+```bash
+sysray schedule install
+```
+
+This installs OS-native recurring jobs for:
+
+- snapshot append every 5 minutes
+- prune once per day at `02:00`
+- archive once per day at `02:30`
+
+Workspace helper for Linux developers:
 
 ```bash
 ./scripts/install-linux-user.sh
@@ -191,6 +226,13 @@ install -m 755 dist/sysray-<version>-<target>/standalone/sysray ~/.local/bin/sys
 ~/.local/bin/sysray service install
 systemctl --user status sysray.service
 ```
+
+Important for a blank machine:
+
+- `cargo install sysray` is a developer bootstrap path, not the recommended end-user install path
+- it requires a Rust toolchain and usually leaves the binary under `~/.cargo/bin`
+- after a release-binary install, prefer `sysray install` plus `sysray service install`
+- on Linux, package formats such as `.rpm` or a standalone release tarball are a better first-run story than requiring Rust
 
 ## Configuration
 

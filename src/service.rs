@@ -8,17 +8,17 @@ const CONFIG_TEMPLATE: &str = include_str!("../config/sysray.toml.example");
 
 #[cfg(target_os = "linux")]
 pub async fn run_service(action: ServiceAction) -> Result<()> {
-    linux::run(action)
+    linux::run(action, None)
 }
 
 #[cfg(target_os = "macos")]
 pub async fn run_service(action: ServiceAction) -> Result<()> {
-    macos::run(action)
+    macos::run(action, None)
 }
 
 #[cfg(target_os = "windows")]
 pub async fn run_service(action: ServiceAction) -> Result<()> {
-    windows::run(action)
+    windows::run(action, None)
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
@@ -26,7 +26,36 @@ pub async fn run_service(_action: ServiceAction) -> Result<()> {
     bail!("Service management is not supported on this OS")
 }
 
-fn current_exe_string() -> Result<String> {
+pub async fn run_service_with_exe(
+    action: ServiceAction,
+    exe_override: Option<&Path>,
+) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        return linux::run(action, exe_override);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        return macos::run(action, exe_override);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return windows::run(action, exe_override);
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        let _ = (action, exe_override);
+        bail!("Service management is not supported on this OS")
+    }
+}
+
+fn current_exe_string(exe_override: Option<&Path>) -> Result<String> {
+    if let Some(path) = exe_override {
+        return Ok(path.to_string_lossy().into_owned());
+    }
     Ok(std::env::current_exe()?.to_string_lossy().into_owned())
 }
 
@@ -102,7 +131,7 @@ mod linux {
 
     const TEMPLATE: &str = include_str!("../deploy/systemd/sysray.service");
 
-    pub fn run(action: ServiceAction) -> Result<()> {
+    pub fn run(action: ServiceAction, exe_override: Option<&Path>) -> Result<()> {
         let config_dir = home_dir()?.join(".config/sysray");
         let data_dir = home_dir()?.join(".local/share/sysray");
         let config_path = config_dir.join("sysray.toml");
@@ -114,7 +143,7 @@ mod linux {
                 ensure_dir(&config_dir)?;
                 ensure_dir(&data_dir)?;
                 ensure_config_file(&config_path)?;
-                let exe = current_exe_string()?;
+                let exe = current_exe_string(exe_override)?;
                 write_runner_script(&runner_path, &exe, &config_path, &data_dir)?;
 
                 let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
@@ -159,7 +188,7 @@ mod macos {
 
     const TEMPLATE: &str = include_str!("../deploy/launchd/com.zabadehut.sysray.plist");
 
-    pub fn run(action: ServiceAction) -> Result<()> {
+    pub fn run(action: ServiceAction, exe_override: Option<&Path>) -> Result<()> {
         let app_dir = home_dir()?.join("Library/Application Support/Sysray");
         let config_path = app_dir.join("sysray.toml");
         let output_dir = app_dir.join("data");
@@ -171,7 +200,7 @@ mod macos {
                 ensure_dir(&app_dir)?;
                 ensure_dir(&output_dir)?;
                 ensure_config_file(&config_path)?;
-                let exe = current_exe_string()?;
+                let exe = current_exe_string(exe_override)?;
                 write_runner_script(&runner_path, &exe, &config_path, &output_dir)?;
 
                 let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());
@@ -219,7 +248,7 @@ mod windows {
 
     const TEMPLATE: &str = include_str!("../deploy/windows/sysray-task.xml");
 
-    pub fn run(action: ServiceAction) -> Result<()> {
+    pub fn run(action: ServiceAction, exe_override: Option<&Path>) -> Result<()> {
         let app_dir = std::env::var_os("APPDATA")
             .map(PathBuf::from)
             .unwrap_or(std::env::temp_dir())
@@ -234,7 +263,7 @@ mod windows {
                 ensure_dir(&app_dir)?;
                 ensure_dir(&output_dir)?;
                 ensure_config_file(&config_path)?;
-                let exe = current_exe_string()?;
+                let exe = current_exe_string(exe_override)?;
                 write_runner_script(&runner_path, &exe, &config_path, &output_dir)?;
 
                 let content = TEMPLATE.replace("__SYSRAY_RUNNER__", &runner_path.to_string_lossy());

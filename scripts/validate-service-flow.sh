@@ -5,13 +5,23 @@ binary="${1:-target/debug/sysray}"
 binary_dir="$(cd "$(dirname "${binary}")" && pwd)"
 binary="${binary_dir}/$(basename "${binary}")"
 platform="$(uname -s)"
-root="$(mktemp -d)"
-export HOME="${root}/home"
-mkdir -p "${HOME}"
+managed_home=1
+root=""
+if [[ -n "${SYSRAY_VALIDATION_HOME:-}" ]]; then
+  managed_home=0
+  export HOME="${SYSRAY_VALIDATION_HOME}"
+  mkdir -p "${HOME}"
+else
+  root="$(mktemp -d)"
+  export HOME="${root}/home"
+  mkdir -p "${HOME}"
+fi
 
 cleanup() {
   "${binary}" service uninstall >/dev/null 2>&1 || true
-  rm -rf "${root}"
+  if [[ ${managed_home} -eq 1 ]]; then
+    rm -rf "${root}"
+  fi
 }
 
 trap cleanup EXIT
@@ -22,6 +32,9 @@ case "${platform}" in
     service_path="${HOME}/.config/systemd/user/sysray.service"
     config_path="${HOME}/.config/sysray/sysray.toml"
     status_is_optional=1
+    if [[ "${SYSRAY_REQUIRE_LIVE_STATUS:-0}" == "1" ]]; then
+      status_is_optional=0
+    fi
     ;;
   Darwin)
     runner_path="${HOME}/Library/Application Support/Sysray/sysray-service.sh"

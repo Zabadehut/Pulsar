@@ -61,7 +61,11 @@ Recommended workflow coverage:
 - `cargo test --locked`
 - `cargo run --locked -- snapshot --format json`
 - `cargo run --locked -- snapshot --format prometheus`
+- native validation of `sysray service install|status|uninstall`
+- native validation of `sysray schedule install|status|uninstall`
 - Ubuntu-only linting and cross-target `cargo check`
+
+Linux first-class validation should also include one runner that brings up a real `systemd --user` manager and validates both `service` and `schedule` against it.
 
 ### Local Cross-Build Attempt
 
@@ -93,6 +97,7 @@ Sysray should only claim support for an OS level when:
 - core commands build successfully
 - runtime behavior is validated for the relevant collectors
 - service integration is validated on that OS
+- recurring schedule integration is validated on that OS
 
 Architecture-only support does not count as full support.
 

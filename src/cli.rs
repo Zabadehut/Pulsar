@@ -2,23 +2,23 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 const AFTER_HELP: &str = "\
-Scheduling examples:
+Native automation examples:
 
-Linux cron tasks:
-  */5 * * * * /home/<user>/dev/sysray/scripts/sysray-daily-snapshot.sh
-  0 2 */15 * * /home/<user>/dev/sysray/scripts/sysray-prune-raw.sh
-  30 2 * * * /home/<user>/dev/sysray/scripts/sysray-archive-raw.sh
-
-Linux task intent:
-  1) append snapshots into ~/.local/share/sysray/daily/YYYY-MM-DD.jsonl
-  2) rotate raw files by hour/day/size when needed
-  3) keep raw retention bounded with --keep
+  sysray install
+  sysray schedule install
+  sysray maintenance daily-snapshot
+  sysray maintenance prune --retention-days 15
+  sysray maintenance archive --min-age-days 15 --max-age-days 60
 
 macOS launchd:
+  sysray install
+  sysray schedule install
   sysray service install
   launchctl list | grep com.zabadehut.sysray
 
 Windows Task Scheduler:
+  sysray.exe install
+  sysray.exe schedule install
   sysray.exe service install
   schtasks /Query /TN Sysray /V /FO LIST
 
@@ -147,6 +147,25 @@ pub enum Commands {
         audience: Option<String>,
     },
 
+    /// Install the current executable to a stable user path
+    Install {
+        /// Copy the binary only and skip service installation
+        #[arg(long)]
+        no_service: bool,
+    },
+
+    /// Run built-in maintenance tasks without external shell scripts
+    Maintenance {
+        #[command(subcommand)]
+        action: MaintenanceAction,
+    },
+
+    /// Install, remove, or inspect native recurring schedules
+    Schedule {
+        #[command(subcommand)]
+        action: ScheduleAction,
+    },
+
     /// Install, remove, or inspect OS service integration
     Service {
         #[command(subcommand)]
@@ -161,5 +180,53 @@ pub enum ServiceAction {
     /// Remove the installed service or scheduled task
     Uninstall,
     /// Query the current service or scheduled-task status
+    Status,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum MaintenanceAction {
+    /// Append one compact JSON snapshot to the daily jsonl file
+    DailySnapshot {
+        /// Output directory for YYYY-MM-DD.jsonl files
+        #[arg(long)]
+        output_dir: Option<PathBuf>,
+    },
+    /// Delete daily jsonl files older than N days
+    Prune {
+        /// Directory containing daily jsonl files
+        #[arg(long)]
+        directory: Option<PathBuf>,
+
+        /// Delete files older than this many days
+        #[arg(long, default_value_t = 15)]
+        retention_days: u64,
+    },
+    /// Zip aged daily jsonl files and delete old archives
+    Archive {
+        /// Directory containing daily jsonl files
+        #[arg(long)]
+        source_dir: Option<PathBuf>,
+
+        /// Output directory for zip archives
+        #[arg(long)]
+        archive_dir: Option<PathBuf>,
+
+        /// Minimum file age in days before archiving
+        #[arg(long, default_value_t = 15)]
+        min_age_days: u64,
+
+        /// Maximum age window in days kept in archive form
+        #[arg(long, default_value_t = 60)]
+        max_age_days: u64,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone, Copy)]
+pub enum ScheduleAction {
+    /// Install native recurring tasks for snapshot, prune, and archive
+    Install,
+    /// Remove native recurring tasks
+    Uninstall,
+    /// Query recurring-task status
     Status,
 }
