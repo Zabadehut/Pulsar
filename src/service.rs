@@ -32,17 +32,17 @@ pub async fn run_service_with_exe(
 ) -> Result<()> {
     #[cfg(target_os = "linux")]
     {
-        return linux::run(action, exe_override);
+        linux::run(action, exe_override)
     }
 
     #[cfg(target_os = "macos")]
     {
-        return macos::run(action, exe_override);
+        macos::run(action, exe_override)
     }
 
     #[cfg(target_os = "windows")]
     {
-        return windows::run(action, exe_override);
+        windows::run(action, exe_override)
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
