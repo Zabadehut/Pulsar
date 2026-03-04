@@ -193,3 +193,17 @@ jobs:
             release-artifacts/*.exe
             release-artifacts/*.SHA256SUMS
             release-artifacts/*.SHA256SUMS.asc
+
+      - name: Publish crate to crates.io (optional)
+        if: ${{ secrets.CRATES_IO_TOKEN != '' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          echo "Publishing crate to crates.io"
+          # Ensure Rust is available on the runner
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          export PATH="$HOME/.cargo/bin:$PATH"
+
+          # Confirm version and workspace
+          cargo --version
+          cargo publish --token "$CARGO_REGISTRY_TOKEN"
