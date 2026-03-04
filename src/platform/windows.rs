@@ -1,15 +1,18 @@
 use crate::platform::api::{
-    RawCpuReading, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo,
-    RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
+    RawCpuReading, RawCpuStat, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics,
+    RawMemoryInfo, RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
 };
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::mem::size_of;
 use std::process::Command;
+use std::sync::OnceLock;
 use windows::Win32::Foundation::{CloseHandle, FILETIME, HANDLE};
 use windows::Win32::System::SystemInformation::{
-    GetNativeSystemInfo, GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX, SYSTEM_INFO,
+    GetNativeSystemInfo, GetSystemTimes, GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX,
+    SYSTEM_INFO,
 };
 use windows::Win32::System::Threading::{
     GetProcessHandleCount, GetProcessIoCounters, GetProcessTimes, OpenProcess, IO_COUNTERS,
@@ -17,6 +20,7 @@ use windows::Win32::System::Threading::{
 };
 
 pub fn read_cpu() -> Result<RawCpuReading> {
+    let global = read_native_cpu_stat().unwrap_or_default();
     let total_usage = powershell_json(
         "(Get-Counter '\\Processor(_Total)\\% Processor Time').CounterSamples | Select-Object CookedValue | ConvertTo-Json -Compress",
     )
@@ -34,6 +38,7 @@ pub fn read_cpu() -> Result<RawCpuReading> {
     .collect();
 
     Ok(RawCpuReading {
+        global,
         direct_global_usage_pct: Some(total_usage.clamp(0.0, 100.0)),
         direct_iowait_pct: Some(0.0),
         direct_steal_pct: Some(0.0),
@@ -514,8 +519,17 @@ fn read_system_details() -> Option<Value> {
 }
 
 fn powershell(script: &str) -> Option<String> {
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", script])
+    let command = powershell_command()?;
+    let output = Command::new(command)
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
         .output()
         .ok()?;
     if !output.status.success() {
@@ -528,6 +542,49 @@ fn powershell(script: &str) -> Option<String> {
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn powershell_command() -> Option<&'static OsString> {
+    static COMMAND: OnceLock<Option<OsString>> = OnceLock::new();
+    COMMAND
+        .get_or_init(|| {
+            for candidate in ["powershell.exe", "powershell", "pwsh.exe", "pwsh"] {
+                let status = Command::new(candidate)
+                    .args([
+                        "-NoLogo",
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        "$PSVersionTable.PSVersion.Major",
+                    ])
+                    .status();
+                if matches!(status, Ok(result) if result.success()) {
+                    return Some(OsString::from(candidate));
+                }
+            }
+            None
+        })
+        .as_ref()
+}
+
+fn read_native_cpu_stat() -> Option<RawCpuStat> {
+    let mut idle = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    unsafe {
+        GetSystemTimes(&mut idle, &mut kernel, &mut user).ok()?;
+    }
+
+    let idle_ticks = filetime_to_u64(idle);
+    let kernel_ticks = filetime_to_u64(kernel);
+    let user_ticks = filetime_to_u64(user);
+
+    Some(RawCpuStat {
+        user: user_ticks,
+        system: kernel_ticks.saturating_sub(idle_ticks),
+        idle: idle_ticks,
+        ..RawCpuStat::default()
+    })
 }
 
 fn read_process_native_metrics(pid: u32) -> Option<ProcessNativeMetrics> {
