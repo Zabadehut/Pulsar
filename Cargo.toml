@@ -1,6 +1,6 @@
 [package]
 name        = "sysray"
-version     = "0.5.3"
+version     = "0.5.4"
 edition     = "2021"
 authors     = ["Kevin Vanden-Brande <zaba88@hotmail.fr>"]
 license     = "Apache-2.0"
