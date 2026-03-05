@@ -6,6 +6,14 @@ The format is inspired by Keep a Changelog, and this project aims to follow Sema
 
 ## [Unreleased]
 
+## [0.5.10] - 2026-03-05
+
+### Changed
+
+- Windows uninstall now schedules binary cleanup with robust path handling in CI contexts
+- Windows install-flow validation now force-cleans lingering `sysray` processes to prevent hung jobs
+- Project version advanced to `0.5.10`
+
 ## [0.5.9] - 2026-03-05
 
 ### Changed
