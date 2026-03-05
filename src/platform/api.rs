@@ -1,5 +1,14 @@
 use anyhow::Result;
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RawLoadAverageSource {
+    #[default]
+    Unknown,
+    Native,
+    DerivedDemand,
+}
+
 /// Raw CPU counter snapshot for delta computation.
 /// All platforms must produce this shape; zero-filled on unsupported OS.
 #[derive(Debug, Clone, Default)]
@@ -35,6 +44,7 @@ pub struct RawCpuReading {
     pub load_avg_1: f64,
     pub load_avg_5: f64,
     pub load_avg_15: f64,
+    pub load_avg_source: RawLoadAverageSource,
     pub context_switches: u64,
     pub interrupts: u64,
     pub direct_global_usage_pct: Option<f64>,
@@ -120,6 +130,9 @@ pub struct RawNetConnections {
     pub udp_close: u32,
     pub udp_other: u32,
     pub retrans_segs: u64,
+    pub tcp_state_breakdown_supported: bool,
+    pub udp_breakdown_supported: bool,
+    pub retrans_supported: bool,
 }
 
 /// Disk space from statvfs/equivalent.
@@ -151,6 +164,12 @@ pub struct RawMemoryInfo {
     pub vm_pgscan: u64,
     pub vm_pgsteal: u64,
     pub usage_pct: f64,
+    pub cached_supported: bool,
+    pub buffers_supported: bool,
+    pub dirty_supported: bool,
+    pub vm_fault_counters_supported: bool,
+    pub vm_scan_counters_supported: bool,
+    pub vm_io_counters_supported: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -229,6 +248,8 @@ pub struct RawProcReading {
     pub io_read_bytes: u64,
     pub io_write_bytes: u64,
     pub cpu_pct_hint: Option<f64>,
+    pub fd_count_supported: bool,
+    pub io_bytes_supported: bool,
 }
 
 #[allow(dead_code)]

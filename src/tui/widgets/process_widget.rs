@@ -78,15 +78,23 @@ pub fn render(
                 Cell::from(format!("{:.1}", p.cpu_pct)).style(cpu_style),
                 Cell::from(format!("{:.0}", p.mem_rss_kb as f64 / 1024.0)),
                 Cell::from(format!("{:?}", p.state).chars().take(8).collect::<String>()),
-                Cell::from(format!("{}", p.fd_count)),
+                Cell::from(if p.fd_count_supported {
+                    p.fd_count.to_string()
+                } else {
+                    "n/a".to_string()
+                }),
                 Cell::from(p.user.chars().take(10).collect::<String>()),
                 Cell::from(if p.is_jvm { "JVM" } else { "" }),
             ];
             if detailed {
-                cells.push(Cell::from(format!(
-                    "{:.1}",
-                    (p.io_read_bytes + p.io_write_bytes) as f64 / (1024.0 * 1024.0)
-                )));
+                cells.push(Cell::from(if p.io_bytes_supported {
+                    format!(
+                        "{:.1}",
+                        (p.io_read_bytes + p.io_write_bytes) as f64 / (1024.0 * 1024.0)
+                    )
+                } else {
+                    "n/a".to_string()
+                }));
             }
             Row::new(cells)
         })

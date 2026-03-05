@@ -1,11 +1,13 @@
 use crate::platform::api::{
-    RawCpuReading, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics, RawMemoryInfo,
-    RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
+    RawCpuReading, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics,
+    RawLoadAverageSource, RawMemoryInfo, RawNetConnections, RawNetStat, RawProcReading,
+    RawSystemInfo,
 };
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::{size_of, MaybeUninit};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -31,6 +33,7 @@ pub fn read_cpu() -> Result<RawCpuReading> {
         load_avg_1: load.0,
         load_avg_5: load.1,
         load_avg_15: load.2,
+        load_avg_source: RawLoadAverageSource::Native,
         ..RawCpuReading::default()
     })
 }
@@ -176,6 +179,9 @@ pub fn read_net_connections() -> RawNetConnections {
     RawNetConnections {
         total,
         established,
+        tcp_state_breakdown_supported: false,
+        udp_breakdown_supported: false,
+        retrans_supported: false,
         ..RawNetConnections::default()
     }
 }
@@ -308,6 +314,12 @@ pub fn read_memory() -> Result<RawMemoryInfo> {
         vm_pgscan: 0,
         vm_pgsteal: 0,
         usage_pct,
+        cached_supported: true,
+        buffers_supported: false,
+        dirty_supported: false,
+        vm_fault_counters_supported: false,
+        vm_scan_counters_supported: false,
+        vm_io_counters_supported: false,
     })
 }
 
@@ -379,6 +391,7 @@ pub fn read_processes() -> Result<Vec<RawProcReading>> {
         };
         let fallback_cpu_time_ns = parse_ps_cpu_time_ns(parts[3]).unwrap_or(0);
         let rusage = read_process_rusage(pid);
+        let fd_count = read_fd_count(pid);
 
         processes.push(RawProcReading {
             pid,
@@ -395,7 +408,7 @@ pub fn read_processes() -> Result<Vec<RawProcReading>> {
             vsize: vsz_kb * 1024,
             rss: rss_kb,
             threads,
-            fd_count: read_fd_count(pid),
+            fd_count,
             state_char,
             user,
             io_read_bytes: rusage
@@ -407,6 +420,8 @@ pub fn read_processes() -> Result<Vec<RawProcReading>> {
                 .map(|usage| usage.ri_diskio_byteswritten)
                 .unwrap_or(0),
             cpu_pct_hint,
+            fd_count_supported: true,
+            io_bytes_supported: rusage.is_some(),
         });
     }
 
@@ -568,17 +583,42 @@ fn logical_stack_from_map(
 }
 
 fn command_output(program: &str, args: &[&str]) -> Option<String> {
-    let output = Command::new(program).args(args).output().ok()?;
-    if !output.status.success() {
-        return None;
+    for candidate in command_candidates(program) {
+        let output = match Command::new(&candidate)
+            .args(args)
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .output()
+        {
+            Ok(output) => output,
+            Err(_) => continue,
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let text = String::from_utf8(output.stdout).ok()?;
+        let trimmed = text.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
     }
-    let text = String::from_utf8(output.stdout).ok()?;
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
+
+    None
+}
+
+fn command_candidates(program: &str) -> Vec<PathBuf> {
+    let path = Path::new(program);
+    if path.is_absolute() || program.contains('/') {
+        return vec![path.to_path_buf()];
     }
+
+    vec![
+        PathBuf::from(program),
+        PathBuf::from("/usr/bin").join(program),
+        PathBuf::from("/usr/sbin").join(program),
+        PathBuf::from("/bin").join(program),
+        PathBuf::from("/sbin").join(program),
+    ]
 }
 
 fn parse_top_cpu_usage_line(line: &str) -> Option<(f64, f64, f64)> {

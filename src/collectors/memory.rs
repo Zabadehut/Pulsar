@@ -25,6 +25,12 @@ pub struct MemoryMetrics {
     pub vm_pgscan: u64,
     pub vm_pgsteal: u64,
     pub usage_pct: f64,
+    pub cached_supported: bool,
+    pub buffers_supported: bool,
+    pub dirty_supported: bool,
+    pub vm_fault_counters_supported: bool,
+    pub vm_scan_counters_supported: bool,
+    pub vm_io_counters_supported: bool,
 }
 
 pub struct MemoryCollector;
@@ -75,6 +81,12 @@ fn collect_memory() -> Result<MemoryMetrics> {
         vm_pgscan: memory.vm_pgscan,
         vm_pgsteal: memory.vm_pgsteal,
         usage_pct: memory.usage_pct,
+        cached_supported: memory.cached_supported,
+        buffers_supported: memory.buffers_supported,
+        dirty_supported: memory.dirty_supported,
+        vm_fault_counters_supported: memory.vm_fault_counters_supported,
+        vm_scan_counters_supported: memory.vm_scan_counters_supported,
+        vm_io_counters_supported: memory.vm_io_counters_supported,
     })
 }
 

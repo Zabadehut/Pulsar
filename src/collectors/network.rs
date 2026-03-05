@@ -38,6 +38,9 @@ pub struct NetworkMetrics {
     pub udp_close: u32,
     pub udp_other: u32,
     pub retrans_segs: u64,
+    pub tcp_state_breakdown_supported: bool,
+    pub udp_breakdown_supported: bool,
+    pub retrans_supported: bool,
 }
 
 pub struct NetworkCollector {
@@ -139,6 +142,9 @@ fn collect_network(c: &mut NetworkCollector) -> Result<Vec<NetworkMetrics>> {
             udp_close: connections.udp_close,
             udp_other: connections.udp_other,
             retrans_segs: connections.retrans_segs,
+            tcp_state_breakdown_supported: connections.tcp_state_breakdown_supported,
+            udp_breakdown_supported: connections.udp_breakdown_supported,
+            retrans_supported: connections.retrans_supported,
         });
 
         c.prev.insert(iface.interface.clone(), iface);

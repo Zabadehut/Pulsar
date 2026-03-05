@@ -1,5 +1,5 @@
 use crate::collectors::{
-    process::ProcessState, DiskMetrics, NetworkMetrics, ProcessMetrics, Snapshot,
+    process::ProcessState, DiskMetrics, LoadAverageSource, NetworkMetrics, ProcessMetrics, Snapshot,
 };
 use crate::reference::Locale;
 use crate::tui::{i18n::text, theme::Theme};
@@ -223,7 +223,7 @@ fn render_pressure_drilldown(
                 .unwrap_or_else(|| body_style(theme)),
         ));
         rows.push(key_value_row(
-            text(locale, "Load 1/5/15", "Load 1/5/15"),
+            load_summary_label(locale, cpu.load_avg_source),
             format!(
                 "{:.2} / {:.2} / {:.2}",
                 cpu.load_avg_1, cpu.load_avg_5, cpu.load_avg_15
@@ -300,6 +300,13 @@ fn render_pressure_drilldown(
             pressure_focus_lines(snapshot, locale, theme),
             theme,
         );
+    }
+}
+
+fn load_summary_label(locale: Locale, source: LoadAverageSource) -> &'static str {
+    match source {
+        LoadAverageSource::DerivedDemand => text(locale, "Demande~ 1/5/15", "Demand~ 1/5/15"),
+        _ => text(locale, "Load 1/5/15", "Load 1/5/15"),
     }
 }
 

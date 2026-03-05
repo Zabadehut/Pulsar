@@ -7,7 +7,7 @@ pub mod network;
 pub mod process;
 pub mod system;
 
-pub use cpu::{CpuCollector, CpuMetrics};
+pub use cpu::{CpuCollector, CpuMetrics, LoadAverageSource};
 pub use disk::{DiskCollector, DiskMetrics};
 pub use linux::{LinuxCollector, LinuxMetrics};
 pub use logs::LogsCollector;

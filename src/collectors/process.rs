@@ -33,6 +33,8 @@ pub struct ProcessMetrics {
     pub io_read_bytes: u64,
     pub io_write_bytes: u64,
     pub is_jvm: bool,
+    pub fd_count_supported: bool,
+    pub io_bytes_supported: bool,
 }
 
 pub struct ProcessCollector {
@@ -135,6 +137,8 @@ fn collect_processes(c: &mut ProcessCollector) -> Result<Vec<ProcessMetrics>> {
             io_read_bytes: proc.io_read_bytes,
             io_write_bytes: proc.io_write_bytes,
             is_jvm,
+            fd_count_supported: proc.fd_count_supported,
+            io_bytes_supported: proc.io_bytes_supported,
         });
 
         c.prev.insert(proc.pid, proc);

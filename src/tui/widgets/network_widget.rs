@@ -77,11 +77,27 @@ pub fn render(
                 Cell::from(format!("{}", n.tx_packets_sec)),
                 Cell::from(format!("{}", n.rx_errors + n.tx_errors)),
                 Cell::from(format!("{}", n.rx_dropped + n.tx_dropped)),
+                Cell::from(if n.tcp_state_breakdown_supported {
+                    format!(
+                        "{}/{}/{}",
+                        n.connections_established, n.tcp_listen, n.tcp_time_wait
+                    )
+                } else {
+                    format!("{}/n/a/n/a", n.connections_established)
+                }),
                 Cell::from(format!(
-                    "{}/{}/{}",
-                    n.connections_established, n.tcp_listen, n.tcp_time_wait
+                    "{}/{}",
+                    if n.udp_breakdown_supported {
+                        n.udp_total.to_string()
+                    } else {
+                        "n/a".to_string()
+                    },
+                    if n.retrans_supported {
+                        n.retrans_segs.to_string()
+                    } else {
+                        "n/a".to_string()
+                    }
                 )),
-                Cell::from(format!("{}/{}", n.udp_total, n.retrans_segs)),
             ];
             if detailed {
                 cells.push(Cell::from(format!("{}", n.connections_total)));

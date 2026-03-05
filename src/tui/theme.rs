@@ -112,7 +112,7 @@ impl Theme {
         if pct >= 90.0 {
             self.gauge_alert_style()
         } else if pct >= 75.0 {
-            Style::default().fg(Color::Yellow)
+            self.highlight_style()
         } else {
             self.gauge_style()
         }

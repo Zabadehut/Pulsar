@@ -99,13 +99,13 @@ pub fn render(frame: &mut Frame, area: Rect, state: MemoryWidgetState<'_>, theme
     );
 
     let cache_text = format!(
-        " {}: {:.0} MB   {}: {:.0} MB   {}: {:.0} MB",
+        " {}: {}   {}: {}   {}: {}",
         text(state.locale, "Cache", "Cached"),
-        metrics.cached_kb as f64 / 1024.0,
+        display_mb(metrics.cached_kb, metrics.cached_supported),
         text(state.locale, "Buffers", "Buffers"),
-        metrics.buffers_kb as f64 / 1024.0,
+        display_mb(metrics.buffers_kb, metrics.buffers_supported),
         text(state.locale, "Dirty", "Dirty"),
-        metrics.dirty_kb as f64 / 1024.0,
+        display_mb(metrics.dirty_kb, metrics.dirty_supported),
     );
     frame.render_widget(
         Paragraph::new(cache_text).style(ratatui::style::Style::default().fg(theme.neutral)),
@@ -114,11 +114,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: MemoryWidgetState<'_>, theme
 
     let vm_text = format!(
         " Pgflt: {}   Maj: {}   Scan: {}   {}: {}",
-        metrics.vm_pgfault,
-        metrics.vm_pgmajfault,
-        metrics.vm_pgscan,
+        display_u64(metrics.vm_pgfault, metrics.vm_fault_counters_supported),
+        display_u64(metrics.vm_pgmajfault, metrics.vm_fault_counters_supported),
+        display_u64(metrics.vm_pgscan, metrics.vm_scan_counters_supported),
         text(state.locale, "Reclaim", "Steal"),
-        metrics.vm_pgsteal,
+        display_u64(metrics.vm_pgsteal, metrics.vm_scan_counters_supported),
     );
     frame.render_widget(
         Paragraph::new(vm_text).style(ratatui::style::Style::default().fg(theme.neutral)),
@@ -131,10 +131,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: MemoryWidgetState<'_>, theme
         metrics.available_kb as f64 / 1024.0,
         text(state.locale, "Pression", "Pressure"),
         state.memory_pressure * 100.0,
-        metrics.vm_pgpgin,
-        metrics.vm_pgpgout,
-        metrics.vm_pswpin,
-        metrics.vm_pswpout,
+        display_u64(metrics.vm_pgpgin, metrics.vm_io_counters_supported),
+        display_u64(metrics.vm_pgpgout, metrics.vm_io_counters_supported),
+        display_u64(metrics.vm_pswpin, metrics.vm_io_counters_supported),
+        display_u64(metrics.vm_pswpout, metrics.vm_io_counters_supported),
     );
     frame.render_widget(
         Paragraph::new(pressure_text).style(ratatui::style::Style::default().fg(theme.neutral)),
@@ -153,5 +153,21 @@ pub fn render(frame: &mut Frame, area: Rect, state: MemoryWidgetState<'_>, theme
             Paragraph::new(extra_text).style(ratatui::style::Style::default().fg(theme.neutral)),
             chunks[5],
         );
+    }
+}
+
+fn display_mb(value_kb: u64, supported: bool) -> String {
+    if supported {
+        format!("{:.0} MB", value_kb as f64 / 1024.0)
+    } else {
+        "n/a".to_string()
+    }
+}
+
+fn display_u64(value: u64, supported: bool) -> String {
+    if supported {
+        value.to_string()
+    } else {
+        "n/a".to_string()
     }
 }

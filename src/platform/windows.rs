@@ -1,6 +1,7 @@
 use crate::platform::api::{
     RawCpuReading, RawCpuStat, RawDiskInventory, RawDiskSpace, RawDiskStat, RawLinuxMetrics,
-    RawMemoryInfo, RawNetConnections, RawNetStat, RawProcReading, RawSystemInfo,
+    RawLoadAverageSource, RawMemoryInfo, RawNetConnections, RawNetStat, RawProcReading,
+    RawSystemInfo,
 };
 use anyhow::Result;
 use serde_json::Value;
@@ -52,9 +53,10 @@ pub fn read_cpu() -> Result<RawCpuReading> {
     Ok(RawCpuReading {
         global,
         direct_global_usage_pct: Some(total_usage.clamp(0.0, 100.0)),
-        direct_iowait_pct: Some(0.0),
-        direct_steal_pct: Some(0.0),
+        direct_iowait_pct: None,
+        direct_steal_pct: None,
         direct_per_core_usage_pct: per_core,
+        load_avg_source: RawLoadAverageSource::DerivedDemand,
         ..RawCpuReading::default()
     })
 }
@@ -273,6 +275,9 @@ pub fn read_net_connections() -> RawNetConnections {
         RawNetConnections {
             total,
             established,
+            tcp_state_breakdown_supported: false,
+            udp_breakdown_supported: false,
+            retrans_supported: false,
             ..RawNetConnections::default()
         }
     })
@@ -357,6 +362,12 @@ pub fn read_memory() -> Result<RawMemoryInfo> {
         vm_pgscan: 0,
         vm_pgsteal: 0,
         usage_pct,
+        cached_supported: false,
+        buffers_supported: false,
+        dirty_supported: false,
+        vm_fault_counters_supported: false,
+        vm_scan_counters_supported: false,
+        vm_io_counters_supported: false,
     })
 }
 
@@ -469,6 +480,8 @@ pub fn read_processes() -> Result<Vec<RawProcReading>> {
                 .map(|metrics| metrics.io_write_bytes)
                 .unwrap_or(0),
             cpu_pct_hint: json_field_f64(&value, "CpuPct"),
+            fd_count_supported: native.is_some(),
+            io_bytes_supported: native.is_some(),
         });
     }
 
@@ -684,6 +697,9 @@ fn read_native_net_connections() -> Option<RawNetConnections> {
     let tcp_v6 = read_tcp_rows_v6().unwrap_or_default();
 
     let mut snapshot = RawNetConnections::default();
+    snapshot.tcp_state_breakdown_supported = true;
+    snapshot.udp_breakdown_supported = true;
+    snapshot.retrans_supported = true;
     for state in tcp_v4.iter().copied() {
         apply_tcp_state(&mut snapshot, state);
     }

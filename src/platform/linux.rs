@@ -1,7 +1,7 @@
 use crate::platform::api::{
     RawCgroupMetrics, RawCpuReading, RawCpuStat, RawDiskInventory, RawDiskSpace, RawDiskStat,
-    RawLinuxMetrics, RawMemoryInfo, RawNetConnections, RawNetStat, RawPressureMetric,
-    RawPressureWindow, RawProcReading, RawPsiMetrics, RawSystemInfo,
+    RawLinuxMetrics, RawLoadAverageSource, RawMemoryInfo, RawNetConnections, RawNetStat,
+    RawPressureMetric, RawPressureWindow, RawProcReading, RawPsiMetrics, RawSystemInfo,
 };
 use anyhow::Result;
 use serde_json::Value;
@@ -81,6 +81,7 @@ pub fn read_cpu() -> Result<RawCpuReading> {
         load_avg_1,
         load_avg_5,
         load_avg_15,
+        load_avg_source: RawLoadAverageSource::Native,
         context_switches,
         interrupts,
         ..RawCpuReading::default()
@@ -221,7 +222,12 @@ pub fn read_disk_inventory() -> Result<Vec<RawDiskInventory>> {
 // ─── Network ──────────────────────────────────────────────────────────────────
 
 pub fn read_net_connections() -> RawNetConnections {
-    let mut connections = RawNetConnections::default();
+    let mut connections = RawNetConnections {
+        tcp_state_breakdown_supported: true,
+        udp_breakdown_supported: true,
+        retrans_supported: true,
+        ..RawNetConnections::default()
+    };
 
     for file in &["/proc/net/tcp", "/proc/net/tcp6"] {
         if let Ok(content) = fs::read_to_string(file) {
@@ -1126,7 +1132,15 @@ fn json_string_list(node: &Value, field: &str) -> Vec<String> {
 
 pub fn read_memory() -> Result<RawMemoryInfo> {
     let content = fs::read_to_string("/proc/meminfo")?;
-    let mut memory = RawMemoryInfo::default();
+    let mut memory = RawMemoryInfo {
+        cached_supported: true,
+        buffers_supported: true,
+        dirty_supported: true,
+        vm_fault_counters_supported: true,
+        vm_scan_counters_supported: true,
+        vm_io_counters_supported: true,
+        ..RawMemoryInfo::default()
+    };
 
     for line in content.lines() {
         let mut parts = line.split_whitespace();
@@ -1626,6 +1640,8 @@ pub fn read_processes() -> Result<Vec<RawProcReading>> {
             io_read_bytes,
             io_write_bytes,
             cpu_pct_hint: None,
+            fd_count_supported: true,
+            io_bytes_supported: true,
         });
     }
     Ok(result)

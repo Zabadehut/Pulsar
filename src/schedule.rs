@@ -151,14 +151,14 @@ mod linux {
             timer_name: "sysray-prune.timer",
             runner_name: "prune.sh",
             maintenance_args: &["prune", "--retention-days", "15"],
-            on_calendar: "daily 02:00",
+            on_calendar: "*-*-* 02:00:00",
         },
         ScheduleUnit {
             service_name: "sysray-archive.service",
             timer_name: "sysray-archive.timer",
             runner_name: "archive.sh",
             maintenance_args: &["archive", "--min-age-days", "15", "--max-age-days", "60"],
-            on_calendar: "daily 02:30",
+            on_calendar: "*-*-* 02:30:00",
         },
     ];
 
