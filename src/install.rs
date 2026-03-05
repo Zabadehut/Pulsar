@@ -654,13 +654,27 @@ foreach ($part in $parts) {
     }
 
     pub fn remove_installed_binary(path: &Path) -> Result<()> {
-        let path = path.to_string_lossy();
-        let script = r#"
-$target = [System.IO.Path]::GetFullPath($args[0])
-$dir = [System.IO.Path]::GetDirectoryName($target)
-$job = "Start-Sleep -Milliseconds 750; if (Test-Path -LiteralPath '$target') { Remove-Item -LiteralPath '$target' -Force -ErrorAction SilentlyContinue }; if ($dir -and (Test-Path -LiteralPath $dir)) { try { Remove-Item -LiteralPath $dir -Force -ErrorAction Stop } catch {} }"
-Start-Process -FilePath "powershell.exe" -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-Command', $job) -WindowStyle Hidden
-"#;
+        let target = path.to_string_lossy().replace('\'', "''");
+        let dir = path
+            .parent()
+            .map(|value| value.to_string_lossy().replace('\'', "''"))
+            .unwrap_or_default();
+        let script = format!(
+            r#"
+$ErrorActionPreference = 'Stop'
+$target = '{target}'
+$dir = '{dir}'
+if ([string]::IsNullOrWhiteSpace($target)) {{
+    exit 0
+}}
+$job = @"
+Start-Sleep -Milliseconds 750
+if (Test-Path -LiteralPath '{target}') {{ Remove-Item -LiteralPath '{target}' -Force -ErrorAction SilentlyContinue }}
+if ('{dir}' -and (Test-Path -LiteralPath '{dir}')) {{ try {{ Remove-Item -LiteralPath '{dir}' -Force -ErrorAction Stop }} catch {{ }} }}
+"@
+Start-Process -FilePath "powershell.exe" -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-Command', $job) -WindowStyle Hidden | Out-Null
+"#
+        );
 
         let status = Command::new("powershell.exe")
             .args([
@@ -670,17 +684,16 @@ Start-Process -FilePath "powershell.exe" -ArgumentList @('-NoLogo','-NoProfile',
                 "-ExecutionPolicy",
                 "Bypass",
                 "-Command",
-                script,
-                &path,
+                &script,
             ])
             .status()
             .context("Failed to schedule installed binary removal through PowerShell")?;
 
         if !status.success() {
-            bail!("Failed to schedule removal of {}", path);
+            bail!("Failed to schedule removal of {}", path.display());
         }
 
-        println!("Scheduled installed binary removal: {}", path);
+        println!("Scheduled installed binary removal: {}", path.display());
         Ok(())
     }
 }

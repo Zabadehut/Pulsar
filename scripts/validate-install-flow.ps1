@@ -84,6 +84,8 @@ try {
     }
 }
 finally {
+    Get-Process -Name "sysray" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
     if (Test-Path $installPath) {
         try {
             & $installPath schedule uninstall *> $null
