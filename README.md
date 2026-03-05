@@ -5,7 +5,7 @@
 Sysray is a system observability engine written in Rust.
 It is being built as a modern replacement for legacy local monitoring tools such as NMON: single binary, low overhead, cross-platform by design, and extensible from day one.
 
-Current workspace version: `0.5.8`
+Current workspace version: `0.5.9`
 
 ## Positioning
 

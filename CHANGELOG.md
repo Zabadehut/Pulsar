@@ -6,6 +6,13 @@ The format is inspired by Keep a Changelog, and this project aims to follow Sema
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-03-05
+
+### Changed
+
+- Release replay for the cross-OS metrics and TUI compatibility batch
+- Project version advanced to `0.5.9`
+
 ## [0.5.8] - 2026-03-05
 
 ### Added
