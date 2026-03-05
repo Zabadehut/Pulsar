@@ -165,45 +165,30 @@ fn render_pressure_drilldown(
     ];
 
     let psi = snapshot.linux.as_ref().and_then(|linux| linux.psi.as_ref());
+    let psi_cpu_avg10 = psi.and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10));
+    let psi_mem_avg10 = psi.and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10));
+    let psi_io_avg10 = psi.and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10));
     rows.extend([
         key_value_row(
             "PSI cpu avg10",
-            format!(
-                "{:.1}%",
-                psi.and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0)
-            ),
-            body_style(theme),
+            format_optional_pct(psi_cpu_avg10),
+            psi_cpu_avg10
+                .map(|value| severity_style(value, 10.0, 3.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             "PSI mem avg10",
-            format!(
-                "{:.1}%",
-                psi.and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0)
-            ),
-            severity_style(
-                psi.and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0),
-                10.0,
-                3.0,
-                theme,
-            ),
+            format_optional_pct(psi_mem_avg10),
+            psi_mem_avg10
+                .map(|value| severity_style(value, 10.0, 3.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             "PSI io avg10",
-            format!(
-                "{:.1}%",
-                psi.and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0)
-            ),
-            severity_style(
-                psi.and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0),
-                10.0,
-                3.0,
-                theme,
-            ),
+            format_optional_pct(psi_io_avg10),
+            psi_io_avg10
+                .map(|value| severity_style(value, 10.0, 3.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
     ]);
 
@@ -577,18 +562,21 @@ fn render_pressure_lens_table(
         .count() as f64;
 
     let reclaim_score = memory
-        .map(|mem| mem.vm_pgscan.saturating_add(mem.vm_pgsteal) as f64 / 1_000.0)
-        .unwrap_or(0.0);
+        .filter(|mem| mem.vm_scan_counters_supported)
+        .map(|mem| mem.vm_pgscan.saturating_add(mem.vm_pgsteal) as f64 / 1_000.0);
     let swap_push = memory
-        .map(|mem| mem.vm_pswpin.saturating_add(mem.vm_pswpout) as f64)
-        .unwrap_or(0.0);
-    let host_vs_cgroup_gap = cgroup
-        .map(|cg| (snapshot.computed.memory_pressure * 100.0 - cg.memory_usage_pct).abs())
-        .unwrap_or(0.0);
-    let cpu_wait = cpu.map(|entry| entry.iowait_pct).unwrap_or(0.0)
-        + psi
-            .and_then(|entry| entry.cpu.some.as_ref().map(|window| window.avg10))
-            .unwrap_or(0.0);
+        .filter(|mem| mem.vm_io_counters_supported)
+        .map(|mem| mem.vm_pswpin.saturating_add(mem.vm_pswpout) as f64);
+    let host_vs_cgroup_gap =
+        cgroup.map(|cg| (snapshot.computed.memory_pressure * 100.0 - cg.memory_usage_pct).abs());
+    let host_iowait = cpu.and_then(|entry| entry.iowait_supported.then_some(entry.iowait_pct));
+    let psi_cpu = psi.and_then(|entry| entry.cpu.some.as_ref().map(|window| window.avg10));
+    let cpu_wait = match (host_iowait, psi_cpu) {
+        (Some(host), Some(psi)) => Some(host + psi),
+        (Some(host), None) => Some(host),
+        (None, Some(psi)) => Some(psi),
+        (None, None) => None,
+    };
     let io_stall = psi
         .and_then(|entry| entry.io.some.as_ref().map(|window| window.avg10))
         .unwrap_or(0.0)
@@ -601,23 +589,31 @@ fn render_pressure_lens_table(
     let rows = vec![
         key_value_row(
             text(locale, "Reclaim score", "Reclaim score"),
-            format!("{reclaim_score:.1}"),
-            severity_style(reclaim_score, 50.0, 5.0, theme),
+            format_optional(reclaim_score, |value| format!("{value:.1}")),
+            reclaim_score
+                .map(|value| severity_style(value, 50.0, 5.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             text(locale, "Swap push", "Swap push"),
-            format!("{swap_push:.0}"),
-            severity_style(swap_push, 10.0, 1.0, theme),
+            format_optional(swap_push, |value| format!("{value:.0}")),
+            swap_push
+                .map(|value| severity_style(value, 10.0, 1.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             text(locale, "Host/cgroup gap", "Host/cgroup gap"),
-            format!("{host_vs_cgroup_gap:.0}%"),
-            body_style(theme),
+            format_optional_pct(host_vs_cgroup_gap),
+            host_vs_cgroup_gap
+                .map(|value| severity_style(value, 20.0, 8.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             text(locale, "CPU wait mix", "CPU wait mix"),
-            format!("{cpu_wait:.1}"),
-            severity_style(cpu_wait, 15.0, 3.0, theme),
+            format_optional(cpu_wait, |value| format!("{value:.1}")),
+            cpu_wait
+                .map(|value| severity_style(value, 15.0, 3.0, theme))
+                .unwrap_or_else(|| theme.muted_style()),
         ),
         key_value_row(
             text(locale, "IO stall mix", "IO stall mix"),
@@ -1639,37 +1635,26 @@ fn pressure_summary_lines(
                 linux
                     .psi
                     .as_ref()
-                    .and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0),
+                    .and_then(|psi| psi.cpu.some.as_ref().map(|v| v.avg10)),
                 linux
                     .psi
                     .as_ref()
-                    .and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0),
+                    .and_then(|psi| psi.memory.some.as_ref().map(|v| v.avg10)),
                 linux
                     .psi
                     .as_ref()
-                    .and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10))
-                    .unwrap_or(0.0),
-                linux
-                    .cgroup
-                    .as_ref()
-                    .map(|c| c.memory_usage_pct)
-                    .unwrap_or(0.0),
-                linux
-                    .cgroup
-                    .as_ref()
-                    .map(|c| {
-                        if c.cpu_nr_periods == 0 {
-                            0.0
-                        } else {
-                            c.cpu_nr_throttled as f64 / c.cpu_nr_periods as f64 * 100.0
-                        }
-                    })
-                    .unwrap_or(0.0),
+                    .and_then(|psi| psi.io.some.as_ref().map(|v| v.avg10)),
+                linux.cgroup.as_ref().map(|c| c.memory_usage_pct),
+                linux.cgroup.as_ref().map(|c| {
+                    if c.cpu_nr_periods == 0 {
+                        0.0
+                    } else {
+                        c.cpu_nr_throttled as f64 / c.cpu_nr_periods as f64 * 100.0
+                    }
+                }),
             )
         } else {
-            (0.0, 0.0, 0.0, 0.0, 0.0)
+            (None, None, None, None, None)
         };
     let disk_sleep = snapshot
         .processes
@@ -1689,17 +1674,19 @@ fn pressure_summary_lines(
                 style_for_pressure(mem_pressure, theme),
             ),
             Span::raw(format!(
-                "psi cpu {:.1}%  psi mem {:.1}%  psi io {:.1}%",
-                psi_cpu, psi_mem, psi_io
+                "psi cpu {}  psi mem {}  psi io {}",
+                format_optional_pct(psi_cpu),
+                format_optional_pct(psi_mem),
+                format_optional_pct(psi_io)
             )),
         ]),
         Line::from(vec![
             Span::raw(format!(
-                "{} {:.1}%  ",
+                "{} {}  ",
                 text(locale, "cgroup mem", "cgroup mem"),
-                cgroup_mem
+                format_optional_pct(cgroup_mem)
             )),
-            Span::raw(format!("throttle {:.1}%  ", throttle_pct)),
+            Span::raw(format!("throttle {}  ", format_optional_pct(throttle_pct))),
             Span::styled(
                 format!(
                     "{} {}",
@@ -2375,6 +2362,14 @@ where
                 .borders(Borders::ALL)
                 .border_style(theme.border_style()),
         )
+}
+
+fn format_optional<T>(value: Option<T>, formatter: impl FnOnce(T) -> String) -> String {
+    value.map(formatter).unwrap_or_else(|| "n/a".to_string())
+}
+
+fn format_optional_pct(value: Option<f64>) -> String {
+    format_optional(value, |v| format!("{v:.1}%"))
 }
 
 fn key_value_row<'a>(key: &'a str, value: String, value_style: Style) -> Row<'a> {

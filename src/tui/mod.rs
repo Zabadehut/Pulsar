@@ -10,7 +10,7 @@ use crate::reference::Locale;
 use crate::tui::widgets::analysis_widget::SpecialistView;
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -65,6 +65,9 @@ pub async fn run_tui(
 
         if event::poll(refresh)? {
             if let Event::Key(key) = event::read()? {
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
                 if logs.input_active {
                     match key.code {
                         KeyCode::Esc => {

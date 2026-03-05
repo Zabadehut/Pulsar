@@ -87,17 +87,18 @@ impl PanelVisibility {
 
     fn visible_count(&self) -> usize {
         [
-            self.system,
-            self.cpu,
-            self.memory,
-            self.linux,
-            self.disk,
-            self.network,
-            self.alerts,
-            self.process,
+            Panel::System,
+            Panel::Cpu,
+            Panel::Memory,
+            Panel::Linux,
+            Panel::Disk,
+            Panel::Network,
+            Panel::Alerts,
+            Panel::Process,
         ]
         .into_iter()
-        .filter(|visible| *visible)
+        .filter(|panel| panel_supported(*panel))
+        .filter(|panel| self.is_visible(*panel))
         .count()
     }
 }
@@ -171,6 +172,9 @@ impl Dashboard {
     }
 
     pub fn toggle_panel(&mut self, panel: Panel) {
+        if !panel_supported(panel) {
+            return;
+        }
         self.visibility.toggle(panel);
     }
 
@@ -189,6 +193,9 @@ impl Dashboard {
         self.specialist_view = SpecialistView::None;
         self.operator_mode = mode;
         self.visibility = mode.visibility();
+        if !linux_panel_supported() {
+            self.visibility.linux = false;
+        }
     }
 
     pub fn set_specialist_view(&mut self, specialist: SpecialistView) {
@@ -203,6 +210,9 @@ impl Dashboard {
         };
         if specialist != SpecialistView::None {
             self.visibility = self.operator_mode.visibility();
+            if !linux_panel_supported() {
+                self.visibility.linux = false;
+            }
         }
     }
 
@@ -340,9 +350,11 @@ impl Dashboard {
 
         let has_left = left_panels
             .into_iter()
+            .filter(|panel| panel_supported(*panel))
             .any(|panel| self.visibility.is_visible(panel));
         let has_right = right_panels
             .into_iter()
+            .filter(|panel| panel_supported(*panel))
             .any(|panel| self.visibility.is_visible(panel));
         let has_top = has_left || has_right;
         let has_process = self.visibility.is_visible(Panel::Process);
@@ -385,8 +397,16 @@ impl Dashboard {
                 frame.render_widget(
                     Paragraph::new(text(
                         self.locale,
-                        "Tous les panneaux sont caches. Basculer avec s/c/m/k/d/n/a/p.",
-                        "All panels hidden. Toggle with s/c/m/k/d/n/a/p.",
+                        if linux_panel_supported() {
+                            "Tous les panneaux sont caches. Basculer avec s/c/m/k/d/n/a/p."
+                        } else {
+                            "Tous les panneaux sont caches. Basculer avec s/c/m/d/n/a/p."
+                        },
+                        if linux_panel_supported() {
+                            "All panels hidden. Toggle with s/c/m/k/d/n/a/p."
+                        } else {
+                            "All panels hidden. Toggle with s/c/m/d/n/a/p."
+                        },
                     )),
                     monitoring_area,
                 );
@@ -640,6 +660,7 @@ impl Dashboard {
         panels
             .iter()
             .copied()
+            .filter(|panel| panel_supported(*panel))
             .filter(|panel| self.visibility.is_visible(*panel))
             .collect()
     }
@@ -910,9 +931,10 @@ impl Dashboard {
         let status = Line::from(vec![
             Span::styled(
                 format!(
-                    "{}:{}/8  ",
+                    "{}:{}/{}  ",
                     text(self.locale, "visibles", "visible"),
-                    self.visibility.visible_count()
+                    self.visibility.visible_count(),
+                    total_panel_count()
                 ),
                 self.theme.highlight_style(),
             ),
@@ -1183,10 +1205,15 @@ impl Dashboard {
         };
 
         let mut spans = Vec::new();
-        for (index, panel) in panels.iter().copied().enumerate() {
-            if index > 0 {
+        let mut first = true;
+        for panel in panels.iter().copied() {
+            if !panel_supported(panel) {
+                continue;
+            }
+            if !first {
                 spans.push(Span::raw("  "));
             }
+            first = false;
             let (key, label, visible) = match panel {
                 Panel::System => ("s", text(self.locale, "sys", "sys"), visibility.system),
                 Panel::Cpu => ("c", text(self.locale, "cpu", "cpu"), visibility.cpu),
@@ -1217,9 +1244,10 @@ impl Dashboard {
         Line::from(vec![
             Span::styled(
                 format!(
-                    "{}:{}/8  ",
+                    "{}:{}/{}  ",
                     text(self.locale, "visibles", "visible"),
-                    visibility.visible_count()
+                    visibility.visible_count(),
+                    total_panel_count()
                 ),
                 self.theme.highlight_style(),
             ),
@@ -1304,6 +1332,22 @@ fn split_vertical(area: Rect, count: usize) -> Vec<Rect> {
         .iter()
         .copied()
         .collect()
+}
+
+fn linux_panel_supported() -> bool {
+    cfg!(target_os = "linux")
+}
+
+fn panel_supported(panel: Panel) -> bool {
+    !matches!(panel, Panel::Linux) || linux_panel_supported()
+}
+
+fn total_panel_count() -> usize {
+    if linux_panel_supported() {
+        8
+    } else {
+        7
+    }
 }
 
 fn panel_toggle_span<'a>(key: &'a str, label: &'a str, visible: bool, theme: &Theme) -> Span<'a> {

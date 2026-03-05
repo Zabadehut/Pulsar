@@ -6,6 +6,15 @@ The format is inspired by Keep a Changelog, and this project aims to follow Sema
 
 ## [Unreleased]
 
+## [0.5.11] - 2026-03-05
+
+### Changed
+
+- TUI now hides Linux-only panel semantics on macOS/Windows and adapts panel counters/hints to supported OS panels
+- Pressure/analysis views now render unsupported Linux-specific counters as `n/a` instead of implicit zero values
+- Windows keyboard handling now processes only key-press events for consistent TUI interaction
+- Project version advanced to `0.5.11`
+
 ## [0.5.10] - 2026-03-05
 
 ### Changed
