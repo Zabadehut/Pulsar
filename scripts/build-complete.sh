@@ -21,6 +21,12 @@ PREREQS_DIR="$WORK_DIR/install-prereqs"
 CHECKSUMS_PATH="$DIST_DIR/${BUNDLE_NAME}.SHA256SUMS"
 SIGNATURE_PATH="${CHECKSUMS_PATH}.asc"
 SIGNING_KEY="${SYSRAY_GPG_KEY_ID:-}"
+WINDOWS_SIGN_PFX_BASE64="${SYSRAY_WINDOWS_SIGN_PFX_BASE64:-}"
+WINDOWS_SIGN_PFX_PASSWORD="${SYSRAY_WINDOWS_SIGN_PFX_PASSWORD:-}"
+WINDOWS_SIGN_TIMESTAMP_URL="${SYSRAY_WINDOWS_SIGN_TIMESTAMP_URL:-http://timestamp.digicert.com}"
+MACOS_SIGN_CERT_BASE64="${SYSRAY_MACOS_SIGN_CERT_BASE64:-}"
+MACOS_SIGN_CERT_PASSWORD="${SYSRAY_MACOS_SIGN_CERT_PASSWORD:-}"
+MACOS_SIGN_IDENTITY="${SYSRAY_MACOS_SIGN_IDENTITY:-}"
 GENERATED_ARCHIVES=()
 GENERATED_FILES=()
 
@@ -219,6 +225,82 @@ generate_signature() {
   echo "Signature:         $SIGNATURE_PATH"
 }
 
+sign_windows_binary() {
+  if [[ "$HOST_TARGET" != *windows* ]]; then
+    return
+  fi
+
+  if [[ -z "$WINDOWS_SIGN_PFX_BASE64" || -z "$WINDOWS_SIGN_PFX_PASSWORD" ]]; then
+    echo "==> Windows Authenticode signing skipped (set SYSRAY_WINDOWS_SIGN_PFX_BASE64 and SYSRAY_WINDOWS_SIGN_PFX_PASSWORD)"
+    return
+  fi
+
+  if ! command -v powershell.exe >/dev/null 2>&1; then
+    echo "==> Windows Authenticode signing skipped (powershell.exe not available)"
+    return
+  fi
+
+  local target_path
+  target_path="$(to_native_path "$STANDALONE_DIR/$BINARY_NAME")"
+  local cert_path
+  cert_path="$(to_native_path "${TMPDIR:-/tmp}/sysray-windows-signing.pfx")"
+
+  CERT_PATH="$cert_path" \
+  CERT_B64="$WINDOWS_SIGN_PFX_BASE64" \
+  CERT_PASS="$WINDOWS_SIGN_PFX_PASSWORD" \
+  TS_URL="$WINDOWS_SIGN_TIMESTAMP_URL" \
+  TARGET_PATH="$target_path" \
+  powershell.exe -NoLogo -NoProfile -NonInteractive -Command \
+    '$ErrorActionPreference = "Stop"
+     [System.IO.File]::WriteAllBytes($env:CERT_PATH, [System.Convert]::FromBase64String($env:CERT_B64))
+     $signtool = (Get-Command signtool.exe -ErrorAction Stop).Source
+     & $signtool sign /fd SHA256 /td SHA256 /tr $env:TS_URL /f $env:CERT_PATH /p $env:CERT_PASS $env:TARGET_PATH
+     if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
+     & $signtool verify /pa $env:TARGET_PATH
+     if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE" }' \
+    >/dev/null
+
+  echo "==> Windows Authenticode signing complete: $STANDALONE_DIR/$BINARY_NAME"
+}
+
+sign_macos_binary() {
+  if [[ "$HOST_TARGET" != *apple-darwin* ]]; then
+    return
+  fi
+
+  if [[ -z "$MACOS_SIGN_CERT_BASE64" || -z "$MACOS_SIGN_CERT_PASSWORD" || -z "$MACOS_SIGN_IDENTITY" ]]; then
+    echo "==> macOS code signing skipped (set SYSRAY_MACOS_SIGN_CERT_BASE64, SYSRAY_MACOS_SIGN_CERT_PASSWORD, SYSRAY_MACOS_SIGN_IDENTITY)"
+    return
+  fi
+
+  if ! command -v security >/dev/null 2>&1 || ! command -v codesign >/dev/null 2>&1; then
+    echo "==> macOS code signing skipped (security/codesign not available)"
+    return
+  fi
+
+  local cert_file="${TMPDIR:-/tmp}/sysray-macos-signing.p12"
+  local keychain="${TMPDIR:-/tmp}/sysray-signing.keychain-db"
+  local keychain_pw="sysray-temp-keychain"
+
+  if base64 --help 2>/dev/null | grep -q -- '--decode'; then
+    printf '%s' "$MACOS_SIGN_CERT_BASE64" | base64 --decode > "$cert_file"
+  else
+    printf '%s' "$MACOS_SIGN_CERT_BASE64" | base64 -D > "$cert_file"
+  fi
+
+  security create-keychain -p "$keychain_pw" "$keychain"
+  security set-keychain-settings -lut 21600 "$keychain"
+  security unlock-keychain -p "$keychain_pw" "$keychain"
+  security import "$cert_file" -k "$keychain" -P "$MACOS_SIGN_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+  security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_pw" "$keychain"
+  security list-keychains -d user -s "$keychain" login.keychain-db
+
+  codesign --force --options runtime --timestamp --sign "$MACOS_SIGN_IDENTITY" "$STANDALONE_DIR/$BINARY_NAME"
+  codesign --verify --deep --strict --verbose=2 "$STANDALONE_DIR/$BINARY_NAME"
+
+  echo "==> macOS code signing complete: $STANDALONE_DIR/$BINARY_NAME"
+}
+
 is_generated_archive() {
   local candidate="$1"
   local archive_path
@@ -266,6 +348,9 @@ cp deploy/windows/sysray-task.xml "$PREREQS_DIR/windows/sysray-task.xml"
 cp config/sysray.toml.example "$PREREQS_DIR/linux/sysray.toml.example"
 cp config/sysray.toml.example "$PREREQS_DIR/macos/sysray.toml.example"
 cp config/sysray.toml.example "$PREREQS_DIR/windows/sysray.toml.example"
+
+sign_windows_binary
+sign_macos_binary
 
 cat > "$STANDALONE_DIR/BUILD-INFO.txt" <<EOF
 Sysray standalone bundle

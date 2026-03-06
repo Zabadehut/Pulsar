@@ -12,8 +12,15 @@ jobs:
   build:
     name: Build - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    environment: release
     env:
       SYSRAY_SKIP_VALIDATION: "1"
+      SYSRAY_WINDOWS_SIGN_PFX_BASE64: ${{ secrets.SYSRAY_WINDOWS_SIGN_PFX_BASE64 }}
+      SYSRAY_WINDOWS_SIGN_PFX_PASSWORD: ${{ secrets.SYSRAY_WINDOWS_SIGN_PFX_PASSWORD }}
+      SYSRAY_WINDOWS_SIGN_TIMESTAMP_URL: ${{ secrets.SYSRAY_WINDOWS_SIGN_TIMESTAMP_URL }}
+      SYSRAY_MACOS_SIGN_CERT_BASE64: ${{ secrets.SYSRAY_MACOS_SIGN_CERT_BASE64 }}
+      SYSRAY_MACOS_SIGN_CERT_PASSWORD: ${{ secrets.SYSRAY_MACOS_SIGN_CERT_PASSWORD }}
+      SYSRAY_MACOS_SIGN_IDENTITY: ${{ secrets.SYSRAY_MACOS_SIGN_IDENTITY }}
     strategy:
       fail-fast: false
       matrix:
